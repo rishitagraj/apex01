@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+:root {
+  --background: #07070b;
+  --foreground: #f4f4f8;
+  --surface: #101015;
+  --card: #16161e;
+  --line: #262633;
+  --muted: #9b9bb3;
+  --apex: #ff7a1a;
+  --apex2: #ff3d6e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-apex: var(--apex);
+  --color-apex2: var(--apex2);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--line);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--apex) 40%, transparent);
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, var(--apex) 0%, var(--apex2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bg-apex-gradient {
+  background: linear-gradient(100deg, var(--apex) 0%, var(--apex2) 100%);
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-card;
+  }
+
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-line px-4 py-2 text-sm font-medium text-foreground transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply border-transparent text-white transition hover:opacity-90;
+    background-image: linear-gradient(100deg, var(--apex) 0%, var(--apex2) 100%);
+    box-shadow: 0 12px 32px -10px color-mix(in srgb, var(--apex) 50%, transparent);
+  }
+
+  .btn-ghost {
+    @apply border-transparent hover:bg-surface;
+  }
+
+  .btn-danger {
+    @apply border-transparent bg-rose-600/90 text-white hover:bg-rose-600;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-apex/60 focus:ring-2 focus:ring-apex/20;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs font-medium text-muted;
+  }
+}

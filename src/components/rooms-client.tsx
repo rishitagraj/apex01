@@ -1,0 +1,154 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Video, Users, Crown, Plus, Loader2 } from "lucide-react";
+import { Button, Card, Input, Label, EmptyState, formatMinutes } from "@/components/ui";
+
+type Room = {
+  id: string;
+  name: string;
+  code: string;
+  hostName: string;
+  createdAt: string;
+  isHost: boolean;
+  isJoined: boolean;
+  participantCount: number;
+  totalHours: number;
+};
+
+export function RoomsClient() {
+  const router = useRouter();
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+  const [joiningCode, setJoiningCode] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    const res = await fetch("/api/meetings").catch(() => null);
+    if (res?.ok) {
+      const data = await res.json();
+      setRooms(data.rooms ?? []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const id = setTimeout(refresh, 0);
+    return () => clearTimeout(id);
+  }, [refresh]);
+
+  async function createRoom(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    if (!name.trim()) {
+      setError("Give your room a name.");
+      return;
+    }
+    setCreating(true);
+    const res = await fetch("/api/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      router.push(`/rooms/${data.room.code}`);
+      return;
+    }
+    setError("Could not create the room. Try again.");
+    setCreating(false);
+  }
+
+  async function join(room: Room) {
+    setJoiningCode(room.code);
+    try {
+      await fetch(`/api/meetings/${room.code}/join`, { method: "POST" }).then((r) => {
+        if (!r.ok) throw new Error(`join failed (${r.status})`);
+      });
+    } catch {
+      // Best effort: the room page still works without the tracking member row.
+    } finally {
+      setJoiningCode(null);
+      router.push(`/rooms/${room.code}`);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-5">
+        <form onSubmit={createRoom} className="space-y-4">
+          <div>
+            <Label htmlFor="room-name">Create a focus room</Label>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Input
+                id="room-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Organic Chemistry 2AM grind"
+              />
+              <Button type="submit" disabled={creating} className="btn-primary shrink-0">
+                {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                Create room
+              </Button>
+            </div>
+          </div>
+          {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+        </form>
+      </Card>
+
+      {loading ? (
+        <p className="py-12 text-center text-sm text-muted">Loading rooms…</p>
+      ) : rooms.length === 0 ? (
+        <EmptyState
+          icon={<Video size={28} />}
+          title="No rooms yet"
+          subtitle="Create your first focus room and invite classmates in the app."
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {rooms.map((room) => (
+            <Card key={room.id} className="flex flex-col p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-apex-gradient shadow-lg shadow-apex/20">
+                  <Video size={20} className="text-white" />
+                </div>
+                {room.isHost ? (
+                  <span className="chip border-apex/40 bg-apex/10 text-apex">
+                    <Crown size={12} /> Host
+                  </span>
+                ) : null}
+              </div>
+
+              <h3 className="mt-4 text-base font-semibold">{room.name}</h3>
+              <p className="mt-1 font-mono text-xs text-muted">Room code: {room.code}</p>
+              <p className="mt-1 text-xs text-muted">Hosted by {room.hostName}</p>
+
+              <div className="mt-4 flex items-center gap-4 text-xs text-muted">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users size={14} /> {room.participantCount} live
+                </span>
+                <span>{formatMinutes(room.totalHours * 60)} studied</span>
+              </div>
+
+              <Button
+                onClick={() => join(room)}
+                disabled={joiningCode !== null}
+                className="btn-primary mt-5 w-full"
+              >
+                {joiningCode === room.code ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Video size={16} />
+                )}
+                {joiningCode === room.code ? "Joining…" : "Join room"}
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

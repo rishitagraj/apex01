@@ -1,0 +1,77 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  totalMinutes Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  todos              Todo[]
+  hostedMeetings     Meeting[]       @relation("HostedMeetings")
+  meetingMemberships MeetingMember[]
+  studyDays          StudyDay[]
+}
+
+model Todo {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  notes     String?
+  priority  Priority  @default(MEDIUM)
+  completed Boolean   @default(false)
+  dueDate   DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Meeting {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  hostId    String
+  createdAt DateTime @default(now())
+
+  host        User             @relation("HostedMeetings", fields: [hostId], references: [id], onDelete: Cascade)
+  memberships MeetingMember[]
+}
+
+model MeetingMember {
+  id              String   @id @default(cuid())
+  meetingId       String
+  userId          String
+  minutes         Int      @default(0)
+  joinedAt        DateTime @default(now())
+  lastHeartbeatAt DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+}
+
+model StudyDay {
+  id      String   @id @default(cuid())
+  userId  String
+  date    DateTime @db.Date
+  minutes Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
