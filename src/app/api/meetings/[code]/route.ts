@@ -40,3 +40,20 @@ export async function GET(request: Request, ctx: RouteContext<'/api/meetings/[co
     },
   })
 }
+
+export async function DELETE(request: Request, ctx: RouteContext<'/api/meetings/[code]'>) {
+  const userId = await verifySession()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { code } = await ctx.params
+
+  const meeting = await db.meeting.findUnique({ where: { code } })
+  if (!meeting) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+  if (meeting.hostId !== userId) {
+    return NextResponse.json({ error: 'Only the host can delete this room' }, { status: 403 })
+  }
+
+  await db.meeting.delete({ where: { id: meeting.id } })
+
+  return NextResponse.json({ ok: true })
+}

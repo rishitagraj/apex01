@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { TodoList } from "@/components/todo-list";
+import { PlannerTabs } from "@/components/planner-tabs";
 
 export const metadata: Metadata = { title: "Planner" };
 
@@ -9,10 +9,10 @@ export default function TodosPage() {
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Planner</h1>
         <p className="mt-1 text-sm text-muted">
-          Your tasks, priorities and deadlines in one clean list.
+          Your weekly schedule, tasks and assessment deadlines in one place.
         </p>
       </header>
-      <TodoList />
+      <PlannerTabs />
     </div>
   );
 }

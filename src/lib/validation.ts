@@ -33,5 +33,23 @@ export const meetingSchema = z.object({
   name: z.string().trim().min(1, 'Room name is required').max(100),
 })
 
+export const assessmentSchema = z.object({
+  subject: z.string().trim().min(1, 'Subject is required').max(80),
+  title: z.string().trim().min(1, 'Assessment title is required').max(200),
+  type: z.enum(['EXAM', 'QUIZ', 'ASSIGNMENT', 'PROJECT', 'OTHER']),
+  dueDate: z
+    .union([
+      z.string().date('Invalid date'),
+      z.string().datetime({ offset: true }),
+      z.literal(''),
+    ])
+    .nullable()
+    .optional(),
+  weight: z.number().int().min(0).max(500).nullable().optional(),
+  status: z.enum(['PLANNED', 'STUDYING', 'READY', 'DONE']),
+  notes: z.string().trim().max(2000).optional().or(z.literal('')),
+})
+
 export type TodoInput = z.infer<typeof todoSchema>
 export type MeetingInput = z.infer<typeof meetingSchema>
+export type AssessmentInput = z.infer<typeof assessmentSchema>

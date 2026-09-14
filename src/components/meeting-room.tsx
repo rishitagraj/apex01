@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Video, Users, Crown } from "lucide-react";
+import { Video, Users, Crown, X } from "lucide-react";
 import { Spinner, formatMinutes } from "@/components/ui";
 
 type Participant = {
@@ -44,6 +44,7 @@ export function MeetingRoom({
   const [joined, setJoined] = useState(false);
   const [scriptOk, setScriptOk] = useState(true);
   const [scriptLoading, setScriptLoading] = useState(true);
+  const [showPanel, setShowPanel] = useState(false);
   const roomUrl = `https://${JITSI_DOMAIN}/Apex01-${roomName}`;
 
   const poll = useCallback(async () => {
@@ -175,15 +176,24 @@ export function MeetingRoom({
   const liveCount = participants.filter((p) => p.active).length;
 
   return (
-    <div className="flex h-full flex-col gap-4 lg:flex-row">
-      {/* Jitsi embed */}
-      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-card">
-        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-          <div className="min-w-0">
-            <p className="truncate text-xs text-muted">
-              Video · {JITSI_DOMAIN}
-            </p>
-          </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-card">
+      {/* Toolbar */}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <div className="min-w-0">
+          <p className="truncate text-xs text-muted">Video · {JITSI_DOMAIN}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setShowPanel((v) => !v)}
+            aria-label="Toggle participants"
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+              showPanel
+                ? "border-apex/40 bg-apex/10 text-apex"
+                : "border-line bg-surface hover:border-apex/40"
+            }`}
+          >
+            <Users size={14} /> {liveCount} live
+          </button>
           <a
             href={roomUrl}
             target="_blank"
@@ -193,96 +203,110 @@ export function MeetingRoom({
             <Video size={14} className="text-apex" /> Open in new tab
           </a>
         </div>
-
-        <div className="relative flex-1">
-          <div ref={containerRef} className="absolute inset-0" />
-          {scriptLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface/50">
-              <Spinner className="text-apex" />
-              <p className="text-sm text-muted">Loading video…</p>
-            </div>
-          )}
-          {!scriptOk && (
-            <div className="absolute inset-0 flex items-center justify-center text-center">
-              <div className="px-4">
-                <p className="text-sm text-muted">
-                  Could not load the video SDK from{" "}
-                  <span className="font-mono">{JITSI_DOMAIN}</span>.
-                </p>
-                <a
-                  href={roomUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 rounded-xl bg-apex-gradient px-4 py-2 text-sm font-semibold text-white shadow-lg"
-                >
-                  <Video size={16} /> Open in new tab
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Participants panel */}
-      <div className="w-full shrink-0 space-y-3 rounded-2xl border border-line bg-card p-4 lg:w-64">
-        <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Users size={16} className="text-muted" />
-            Participants
-          </h3>
-          <span className="chip border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
-            {liveCount} live
-          </span>
-        </div>
-
-        {participants.length === 0 ? (
-          <div className="py-6 text-center">
-            <Spinner className="mx-auto text-muted" />
-            <p className="mt-2 text-xs text-muted">Waiting for participants…</p>
+      {/* Video area fills the rest */}
+      <div className="relative min-h-0 flex-1">
+        <div ref={containerRef} className="absolute inset-0" />
+        {scriptLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface/50">
+            <Spinner className="text-apex" />
+            <p className="text-sm text-muted">Loading video…</p>
           </div>
-        ) : (
-          <ul className="space-y-2">
-            {participants.map((p) => {
-              const isHost = p.id === hostId;
-              return (
-                <li
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-surface"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-apex-gradient text-xs font-bold text-white">
-                    {p.name?.charAt(0).toUpperCase() || "?"}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-medium">{p.name}</span>
-                      {isHost ? (
-                        <Crown size={12} className="shrink-0 text-apex" />
-                      ) : null}
-                    </div>
-                    <span className="text-xs text-muted">
-                      {p.active ? (
-                        <>
-                          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          Active · {formatMinutes(p.minutes)}
-                        </>
-                      ) : (
-                        formatMinutes(p.minutes)
-                      )}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+        )}
+        {!scriptOk && (
+          <div className="absolute inset-0 flex items-center justify-center text-center">
+            <div className="px-4">
+              <p className="text-sm text-muted">
+                Could not load the video SDK from{" "}
+                <span className="font-mono">{JITSI_DOMAIN}</span>.
+              </p>
+              <a
+                href={roomUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-apex-gradient px-4 py-2 text-sm font-semibold text-white shadow-lg"
+              >
+                <Video size={16} /> Open in new tab
+              </a>
+            </div>
+          </div>
         )}
 
-        <div className="rounded-xl border border-line p-3 text-center text-xs text-muted">
-          <p className="font-mono">Room: {roomName}</p>
-          <p className="mt-1 text-muted">
-            {!joined ? <Spinner className="mr-1 inline" /> : null}
-            {!joined ? "Connecting…" : "Connected"}
-          </p>
-        </div>
+        {/* Floating participants panel */}
+        {showPanel && (
+          <aside className="absolute right-3 top-3 z-10 flex h-[calc(100%-1.5rem)] w-72 flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl">
+            <header className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Users size={15} className="text-muted" />
+                Participants
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="chip border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                  {liveCount} live
+                </span>
+                <button
+                  onClick={() => setShowPanel(false)}
+                  aria-label="Close participants"
+                  className="rounded-lg p-1 text-muted transition hover:bg-surface hover:text-foreground"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              {participants.length === 0 ? (
+                <div className="py-6 text-center">
+                  <Spinner className="mx-auto text-muted" />
+                  <p className="mt-2 text-xs text-muted">Waiting for participants…</p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {participants.map((p) => {
+                    const isHost = p.id === hostId;
+                    return (
+                      <li
+                        key={p.id}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-surface"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-apex-gradient text-xs font-bold text-white">
+                          {p.name?.charAt(0).toUpperCase() || "?"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-sm font-medium">{p.name}</span>
+                            {isHost ? (
+                              <Crown size={12} className="shrink-0 text-apex" />
+                            ) : null}
+                          </div>
+                          <span className="text-xs text-muted">
+                            {p.active ? (
+                              <>
+                                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                Active · {formatMinutes(p.minutes)}
+                              </>
+                            ) : (
+                              formatMinutes(p.minutes)
+                            )}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <footer className="shrink-0 border-t border-line p-3 text-center text-xs text-muted">
+              <p className="font-mono">Room: {roomName}</p>
+              <p className="mt-1">
+                {!joined ? <Spinner className="mr-1 inline" /> : null}
+                {!joined ? "Connecting…" : "Connected"}
+              </p>
+            </footer>
+          </aside>
+        )}
       </div>
     </div>
   );

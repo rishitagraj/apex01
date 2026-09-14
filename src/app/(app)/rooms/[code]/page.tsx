@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MeetingRoom } from "@/components/meeting-room";
 import { CopyCodeButton } from "@/components/copy-code-button";
+import { DeleteRoomButton } from "@/components/delete-room-button";
 import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -37,7 +38,10 @@ export default async function RoomPage({
             Room {code} · hosted by {meeting.host.name}
           </p>
         </div>
-        <CopyCodeButton code={code} />
+        <div className="flex shrink-0 items-center gap-2">
+          {meeting.host.id === userId ? <DeleteRoomButton code={code} /> : null}
+          <CopyCodeButton code={code} />
+        </div>
       </div>
 
       <div className="min-h-0 flex-1">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Video, Users, Crown, Plus, Loader2 } from "lucide-react";
+import { Video, Users, Crown, Plus, Loader2, Trash2 } from "lucide-react";
 import { Button, Card, Input, Label, EmptyState, formatMinutes } from "@/components/ui";
 
 type Room = {
@@ -25,6 +25,8 @@ export function RoomsClient() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [joiningCode, setJoiningCode] = useState<string | null>(null);
+  const [deleteArmedId, setDeleteArmedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/meetings").catch(() => null);
@@ -73,6 +75,18 @@ export function RoomsClient() {
     } finally {
       setJoiningCode(null);
       router.push(`/rooms/${room.code}`);
+    }
+  }
+
+  async function deleteRoom(room: Room) {
+    setDeletingId(room.id);
+    const res = await fetch(`/api/meetings/${room.code}`, { method: "DELETE" }).catch(() => null);
+    setDeletingId(null);
+    setDeleteArmedId(null);
+    if (res?.ok) {
+      setRooms((prev) => prev.filter((r) => r.id !== room.id));
+    } else {
+      setError("Could not delete the room. You may have left the tab open — refresh to retry.");
     }
   }
 
@@ -145,6 +159,44 @@ export function RoomsClient() {
                 )}
                 {joiningCode === room.code ? "Joining…" : "Join room"}
               </Button>
+
+              {room.isHost ? (
+                <div className="mt-2">
+                  {deleteArmedId === room.id ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-rose-500/30 bg-rose-500/5 px-3 py-2">
+                      <span className="text-xs text-rose-400">Delete this room?</span>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          onClick={() => deleteRoom(room)}
+                          disabled={deletingId === room.id}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-rose-500/90 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:opacity-60"
+                        >
+                          {deletingId === room.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={12} />
+                          )}
+                          {deletingId === room.id ? "Deleting…" : "Delete"}
+                        </button>
+                        <button
+                          onClick={() => setDeleteArmedId(null)}
+                          disabled={deletingId === room.id}
+                          className="rounded-md px-2 py-1 text-xs font-semibold text-muted transition hover:text-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteArmedId(room.id)}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-muted transition hover:border-rose-500/40 hover:text-rose-400"
+                    >
+                      <Trash2 size={13} /> Delete room
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </Card>
           ))}
         </div>
