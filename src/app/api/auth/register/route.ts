@@ -1,23 +1,16 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { hashPassword } from '@/lib/password'
-import { createSession } from '@/lib/auth'
-import { registerSchema } from '@/lib/validation'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
 
-/** Neon pooled databases can cold-start: the first connection may briefly fail. */
-function isRetryable(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error)
-  return (
-    msg.includes('P1001') ||
-    msg.includes('ECONNRESET') ||
-    msg.includes('ETIMEDOUT') ||
-    msg.includes('connect timeout') ||
-    msg.includes('Connection terminated') ||
-    msg.includes('getaddrinfo')
-  )
-}
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const registerSchema = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(50),
+  email: z.string().trim().email('Enter a valid email').toLowerCase(),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[a-zA-Z]/, 'Password must contain a letter')
+    .regex(/[0-9]/, 'Password must contain a number'),
+})
 
 export async function POST(request: Request) {
   try {
@@ -31,47 +24,33 @@ export async function POST(request: Request) {
     }
 
     const { name, email, password } = parsed.data
+    const supabase = await createClient()
 
-    const existing = await db.user.findUnique({ where: { email } })
-    if (existing) {
-      return NextResponse.json(
-        { error: { email: ['An account with this email already exists.'] } },
-        { status: 409 },
-      )
+    const origin = new URL(request.url).origin
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: name },
+        emailRedirectTo: `${origin}/auth/callback?next=/dashboard`,
+      },
+    })
+
+    if (error) {
+      let message = error.message
+      if (/already registered/i.test(message)) {
+        message = 'An account with this email already exists. Sign in instead.'
+      }
+      return NextResponse.json({ error: { email: [message] } }, { status: 409 })
     }
 
-    const passwordHash = await hashPassword(password)
-    try {
-      const user = await db.user.create({
-        data: { name, email, passwordHash },
-      })
-
-      await createSession(user.id)
-
-      return NextResponse.json({
-        user: { id: user.id, name: user.name, email: user.email },
-      })
-    } catch (createError) {
-      if (isRetryable(createError)) {
-        // Neon cold start: give the pool a moment, then try once more.
-        await sleep(1500)
-        const user = await db.user.create({
-          data: { name, email, passwordHash },
-        })
-        await createSession(user.id)
-        return NextResponse.json({
-          user: { id: user.id, name: user.name, email: user.email },
-        })
-      }
-      // Race: someone registered the same email between the check and create.
-      if (createError instanceof Error && createError.message.includes('P2002')) {
-        return NextResponse.json(
-          { error: { email: ['An account with this email already exists.'] } },
-          { status: 409 },
-        )
-      }
-      throw createError
-    }
+    const user = data.user
+    return NextResponse.json({
+      user: user ? { id: user.id, name, email } : null,
+      // When email confirmation is enabled (the default), Supabase returns no
+      // session: the user must click the link / enter the OTP in the email.
+      needsEmailVerification: !data.session,
+    })
   } catch (error) {
     console.error('register error', error)
     return NextResponse.json(
