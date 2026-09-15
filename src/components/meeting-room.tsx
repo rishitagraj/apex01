@@ -17,6 +17,7 @@ type MeetingRoomProps = {
   hostId: string;
   userName: string;
   roomName: string;
+  meetingName: string;
 };
 
 declare global {
@@ -40,7 +41,10 @@ declare global {
   }
 }
 
-const MIROTALK_DOMAIN = process.env.NEXT_PUBLIC_MIROTALK_DOMAIN || "p2p.mirotalk.com";
+// NEXT_PUBLIC_* vars are inlined at build time. If unset, refuse to load any
+// fallback server rather than silently routing users to a public MiroTalk host.
+const MIROTALK_DOMAIN = process.env.NEXT_PUBLIC_MIROTALK_DOMAIN ?? "";
+const MISCONFIGURED = !MIROTALK_DOMAIN;
 const HEARTBEAT_MS = 60_000;
 const POLL_MS = 20_000;
 
@@ -49,6 +53,7 @@ export function MeetingRoom({
   hostId,
   userName,
   roomName,
+  meetingName,
 }: MeetingRoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<InstanceType<NonNullable<typeof window.IframeApi>> | null>(null);
@@ -57,7 +62,7 @@ export function MeetingRoom({
   const [scriptOk, setScriptOk] = useState(true);
   const [scriptLoading, setScriptLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
-  const roomUrl = `https://${MIROTALK_DOMAIN}/${roomName}`;
+  const roomUrl = MIROTALK_DOMAIN ? `https://${MIROTALK_DOMAIN}/${roomName}` : "";
 
   const poll = useCallback(async () => {
     try {
@@ -76,6 +81,13 @@ export function MeetingRoom({
     let disposed = false;
 
     async function load() {
+      if (MISCONFIGURED) {
+        if (!disposed) {
+          setScriptLoading(false);
+          setScriptOk(false);
+        }
+        return;
+      }
       if (window.IframeApi) {
         setScriptLoading(false);
         mount();
@@ -171,38 +183,24 @@ export function MeetingRoom({
   const liveCount = participants.filter((p) => p.active).length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-card">
-      {/* Toolbar */}
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-        <div className="min-w-0">
-          <p className="truncate text-xs text-muted">Video · MiroTalk P2P</p>
+    <div className="relative h-full min-h-0 overflow-hidden rounded-2xl">
+      {MISCONFIGURED ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-card p-6 text-center">
+          <div className="max-w-md">
+            <p className="text-sm font-semibold text-red-400">Video is disabled</p>
+            <p className="mt-2 text-sm text-muted">
+              This deployment is missing{" "}
+              <span className="font-mono">NEXT_PUBLIC_MIROTALK_DOMAIN</span>, so the room will not
+              connect to any video server. Set the env var to your private MiroTalk P2P instance and
+              redeploy — no fallback or public server is used.
+            </p>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => setShowPanel((v) => !v)}
-            aria-label="Toggle participants"
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-              showPanel
-                ? "border-apex/40 bg-apex/10 text-apex"
-                : "border-line bg-surface hover:border-apex/40"
-            }`}
-          >
-            <Users size={14} /> {liveCount} live
-          </button>
-          <a
-            href={roomUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold transition hover:border-apex/40"
-          >
-            <Video size={14} className="text-apex" /> Open in new tab
-          </a>
-        </div>
-      </div>
-
-      {/* Video area fills the rest */}
-      <div className="relative min-h-0 flex-1">
-        <div ref={containerRef} className="absolute inset-0" />
+      ) : (
+        <>
+          {/* Video area fills 100% */}
+          <div className="absolute inset-0">
+        <div ref={containerRef} className="h-full w-full" />
         {scriptLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface/50">
             <Spinner className="text-apex" />
@@ -227,30 +225,63 @@ export function MeetingRoom({
             </div>
           </div>
         )}
+      </div>
 
-        {/* Floating participants panel */}
-        {showPanel && (
-          <aside className="absolute right-3 top-3 z-10 flex h-[calc(100%-1.5rem)] w-72 flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl">
-            <header className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Users size={15} className="text-muted" />
-                Participants
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="chip border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
-                  {liveCount} live
-                </span>
-                <button
-                  onClick={() => setShowPanel(false)}
-                  aria-label="Close participants"
-                  className="rounded-lg p-1 text-muted transition hover:bg-surface hover:text-foreground"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-            </header>
+      {/* Floating top-left room badge */}
+      <div className="absolute left-4 top-4 z-20">
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-sm">
+          <Video size={13} className="text-apex" />
+          <span className="text-xs font-medium text-white/90">{meetingName}</span>
+          <span className="text-[11px] text-white/50">· {roomName}</span>
+        </div>
+      </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      {/* Floating top-right controls */}
+      <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+        <button
+          onClick={() => setShowPanel((v) => !v)}
+          aria-label="Toggle participants"
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold backdrop-blur-sm transition ${
+            showPanel
+              ? "border-apex/40 bg-apex/10 text-apex"
+              : "border-white/10 bg-black/50 text-white/90 hover:bg-black/70"
+          }`}
+        >
+          <Users size={14} /> {liveCount}
+        </button>
+        <a
+          href={roomUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-sm transition hover:bg-black/70"
+        >
+          <Video size={14} className="text-apex" /> Open in new tab
+        </a>
+      </div>
+
+      {/* Floating participants panel */}
+      {showPanel && (
+        <aside className="absolute right-4 top-16 z-30 flex h-[calc(100%-5rem)] w-72 flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/95 shadow-2xl backdrop-blur-sm">
+          <header className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Users size={15} className="text-muted" />
+              Participants
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="chip border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                {liveCount} live
+              </span>
+              <button
+                onClick={() => setShowPanel(false)}
+                aria-label="Close participants"
+                className="rounded-lg p-1 text-muted transition hover:bg-surface hover:text-foreground"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </header>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {participants.length === 0 ? (
                 <div className="py-6 text-center">
                   <Spinner className="mx-auto text-muted" />
@@ -302,7 +333,8 @@ export function MeetingRoom({
             </footer>
           </aside>
         )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
