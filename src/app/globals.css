@@ -1,6 +1,19 @@
 @import "tailwindcss";
 
+/* Light mode (default) */
 :root {
+  --background: #f7f7fb;
+  --foreground: #111118;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --line: #e2e2ea;
+  --muted: #6b6b80;
+  --apex: #e86a10;
+  --apex2: #e03560;
+}
+
+/* Dark mode */
+[data-theme="dark"] {
   --background: #07070b;
   --foreground: #f4f4f8;
   --surface: #101015;

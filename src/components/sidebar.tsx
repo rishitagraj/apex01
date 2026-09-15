@@ -12,6 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Wordmark } from "@/components/brand";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -75,13 +76,16 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
             <p className="truncate text-xs text-muted">{email}</p>
           </div>
         </div>
-        <button
-          onClick={logout}
-          className="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-surface hover:text-foreground"
-        >
-          <LogOut size={18} className="shrink-0" />
-          <span className="hidden md:inline">Sign out</span>
-        </button>
+        <div className="mt-2 flex gap-2">
+          <ThemeToggle />
+          <button
+            onClick={logout}
+            className="flex flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-surface hover:text-foreground"
+          >
+            <LogOut size={18} className="shrink-0" />
+            <span className="hidden md:inline">Sign out</span>
+          </button>
+        </div>
       </div>
     </aside>
   );
