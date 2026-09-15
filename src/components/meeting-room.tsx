@@ -76,11 +76,36 @@ export function MeetingRoom({
     }
   }, [code]);
 
-  // load MiroTalk P2P iframe API script
+  // load MiroTalk P2P iframe API script (with retry for slow/cold servers)
+  const [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
     let disposed = false;
+    let retries = 0;
+    const MAX_RETRIES = 3;
 
-    async function load() {
+    function mount() {
+      if (!containerRef.current || disposed) return;
+      try {
+        apiRef.current = new window.IframeApi!(MIROTALK_DOMAIN, {
+          room: roomName,
+          name: userName,
+          audio: 1,
+          video: 1,
+          screen: 1,
+          chat: 0,
+          hide: 0,
+          notify: 0,
+          width: "100%",
+          height: "100%",
+          parentNode: containerRef.current,
+        });
+        if (!disposed) setJoined(true);
+      } catch {
+        if (!disposed) setScriptOk(false);
+      }
+    }
+
+    function load() {
       if (MISCONFIGURED) {
         if (!disposed) {
           setScriptLoading(false);
@@ -105,11 +130,12 @@ export function MeetingRoom({
           }
         }, 200);
       };
-      if (document.querySelector(`script[src="${src}"]`)) {
+      let s = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+      if (s) {
         waitForExisting();
         return;
       }
-      const s = document.createElement("script");
+      s = document.createElement("script");
       s.src = src;
       s.async = true;
       s.onload = () => {
@@ -119,35 +145,19 @@ export function MeetingRoom({
         }
       };
       s.onerror = () => {
-        if (!disposed) {
+        s?.remove();
+        if (disposed) return;
+        if (retries < MAX_RETRIES) {
+          retries += 1;
+          const delay = 2000 * retries; // 2s, 4s, 6s backoff for cold starts
+          const t = setTimeout(load, delay);
+          if (disposed) clearTimeout(t);
+        } else {
           setScriptLoading(false);
           setScriptOk(false);
         }
       };
-      s.src = src;
       document.body.appendChild(s);
-    }
-
-    function mount() {
-      if (!containerRef.current || disposed) return;
-      try {
-        apiRef.current = new window.IframeApi!(MIROTALK_DOMAIN, {
-          room: roomName,
-          name: userName,
-          audio: 1,
-          video: 1,
-          screen: 1,
-          chat: 0,
-          hide: 0,
-          notify: 0,
-          width: "100%",
-          height: "100%",
-          parentNode: containerRef.current,
-        });
-        if (!disposed) setJoined(true);
-      } catch {
-        if (!disposed) setScriptOk(false);
-      }
     }
 
     load();
@@ -160,7 +170,7 @@ export function MeetingRoom({
         // ignore
       }
     };
-  }, [userName, roomName]);
+  }, [userName, roomName, retryKey]);
 
   // heartbeat + polling
   useEffect(() => {
@@ -211,17 +221,32 @@ export function MeetingRoom({
           <div className="absolute inset-0 flex items-center justify-center text-center">
             <div className="px-4">
               <p className="text-sm text-muted">
-                Could not load the video SDK from{" "}
-                <span className="font-mono">{MIROTALK_DOMAIN}</span>.
+                Could not reach the video server at{" "}
+                <span className="font-mono">{MIROTALK_DOMAIN}</span>. It may be waking up — try
+                again.
               </p>
-              <a
-                href={roomUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-apex-gradient px-4 py-2 text-sm font-semibold text-white shadow-lg"
-              >
-                <Video size={16} /> Open in new tab
-              </a>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => {
+                    setScriptOk(true);
+                    setScriptLoading(true);
+                    setRetryKey((k) => k + 1);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-apex-gradient px-4 py-2 text-sm font-semibold text-white shadow-lg"
+                >
+                  <Video size={16} /> Try again
+                </button>
+                {roomUrl ? (
+                  <a
+                    href={roomUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold transition hover:border-apex/40"
+                  >
+                    <Video size={16} /> Open in new tab
+                  </a>
+                ) : null}
+              </div>
             </div>
           </div>
         )}
