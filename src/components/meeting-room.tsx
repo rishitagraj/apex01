@@ -220,7 +220,19 @@ export function MeetingRoom({
         {!scriptOk && (
           <div className="absolute inset-0 flex items-center justify-center text-center">
             <div className="px-4">
-              <p className="text-sm text-muted">
+              <div className="inline-flex max-w-md items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-left">
+                <div>
+                  <p className="text-sm font-semibold text-amber-400">
+                    Video may not load in the embedded view.
+                  </p>
+                  <p className="mt-1 text-xs text-amber-200/80">
+                    If the video doesn&apos;t appear after a moment, click{" "}
+                    <span className="font-semibold">&quot;Open in new tab&quot;</span> below — it
+                    always works.
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-muted">
                 Could not reach the video server at{" "}
                 <span className="font-mono">{MIROTALK_DOMAIN}</span>. It may be waking up — try
                 again.
