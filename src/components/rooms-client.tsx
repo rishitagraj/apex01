@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Video, Users, Crown, Plus, Loader2, Trash2 } from "lucide-react";
+import { Video, Users, Crown, Plus, Loader2, Trash2, Shield } from "lucide-react";
 import { Button, Card, Input, Label, EmptyState, formatMinutes } from "@/components/ui";
 
 type Room = {
@@ -17,7 +17,7 @@ type Room = {
   totalHours: number;
 };
 
-export function RoomsClient() {
+export function RoomsClient({ isAdmin }: { isAdmin: boolean }) {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,18 +50,24 @@ export function RoomsClient() {
       return;
     }
     setCreating(true);
-    const res = await fetch("/api/meetings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/rooms/${data.room.code}`);
-      return;
+    try {
+      const res = await fetch("/api/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/rooms/${data.room.code}`);
+        return;
+      }
+      const body = await res.json().catch(() => null);
+      setError(body?.error ?? "Could not create the room. Try again.");
+    } catch {
+      setError("Could not create the room. Try again.");
+    } finally {
+      setCreating(false);
     }
-    setError("Could not create the room. Try again.");
-    setCreating(false);
   }
 
   async function join(room: Room) {
@@ -71,7 +77,7 @@ export function RoomsClient() {
         if (!r.ok) throw new Error(`join failed (${r.status})`);
       });
     } catch {
-      // Best effort: the room page still works without the tracking member row.
+      // Best effort
     } finally {
       setJoiningCode(null);
       router.push(`/rooms/${room.code}`);
@@ -89,6 +95,8 @@ export function RoomsClient() {
       setError("Could not delete the room. You may have left the tab open — refresh to retry.");
     }
   }
+
+  const canDelete = (room: Room) => isAdmin || room.isHost;
 
   return (
     <div className="space-y-6">
@@ -109,9 +117,16 @@ export function RoomsClient() {
               </Button>
             </div>
           </div>
-          {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">{rooms.length}/5 rooms active</span>
+            {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+          </div>
         </form>
       </Card>
+
+      {isAdmin && rooms.length > 0 && (
+        <AdminDeleteAll rooms={rooms} onDeleted={(ids) => setRooms((prev) => prev.filter((r) => !ids.includes(r.id)))} />
+      )}
 
       {loading ? (
         <p className="py-12 text-center text-sm text-muted">Loading rooms…</p>
@@ -129,11 +144,18 @@ export function RoomsClient() {
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-apex-gradient shadow-lg shadow-apex/20">
                   <Video size={20} className="text-white" />
                 </div>
-                {room.isHost ? (
-                  <span className="chip border-apex/40 bg-apex/10 text-apex">
-                    <Crown size={12} /> Host
-                  </span>
-                ) : null}
+                <div className="flex shrink-0 gap-2">
+                  {isAdmin && !room.isHost ? (
+                    <span className="chip border-purple-500/40 bg-purple-500/10 text-purple-400">
+                      <Shield size={12} /> Admin
+                    </span>
+                  ) : null}
+                  {room.isHost ? (
+                    <span className="chip border-apex/40 bg-apex/10 text-apex">
+                      <Crown size={12} /> Host
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               <h3 className="mt-4 text-base font-semibold">{room.name}</h3>
@@ -160,7 +182,7 @@ export function RoomsClient() {
                 {joiningCode === room.code ? "Joining…" : "Join room"}
               </Button>
 
-              {room.isHost ? (
+              {canDelete(room) ? (
                 <div className="mt-2">
                   {deleteArmedId === room.id ? (
                     <div className="flex items-center justify-between gap-2 rounded-xl border border-rose-500/30 bg-rose-500/5 px-3 py-2">
@@ -202,5 +224,65 @@ export function RoomsClient() {
         </div>
       )}
     </div>
+  );
+}
+
+function AdminDeleteAll({
+  rooms,
+  onDeleted,
+}: {
+  rooms: Room[];
+  onDeleted: (ids: string[]) => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteAll() {
+    setDeleting(true);
+    const ids: string[] = [];
+    for (const room of rooms) {
+      const res = await fetch(`/api/meetings/${room.code}`, { method: "DELETE" }).catch(() => null);
+      if (res?.ok) ids.push(room.id);
+    }
+    setDeleting(false);
+    setArmed(false);
+    if (ids.length > 0) onDeleted(ids);
+  }
+
+  return (
+    <Card className="border-purple-500/30 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">Admin controls</p>
+          <p className="text-xs text-muted">Delete all {rooms.length} active room{rooms.length !== 1 ? "s" : ""} at once.</p>
+        </div>
+        {armed ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={deleteAll}
+              disabled={deleting}
+              className="inline-flex items-center gap-1.5 rounded-md bg-rose-500/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:opacity-60"
+            >
+              {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+              {deleting ? "Deleting…" : "Confirm delete all"}
+            </button>
+            <button
+              onClick={() => setArmed(false)}
+              disabled={deleting}
+              className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-muted transition hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setArmed(true)}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-1.5 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/10"
+          >
+            <Trash2 size={14} /> Delete all
+          </button>
+        )}
+      </div>
+    </Card>
   );
 }

@@ -50,7 +50,10 @@ export async function DELETE(request: Request, ctx: RouteContext<'/api/meetings/
   const meeting = await db.meeting.findUnique({ where: { code } })
   if (!meeting) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
   if (meeting.hostId !== userId) {
-    return NextResponse.json({ error: 'Only the host can delete this room' }, { status: 403 })
+    const caller = await db.user.findUnique({ where: { id: userId }, select: { isAdmin: true } })
+    if (!caller?.isAdmin) {
+      return NextResponse.json({ error: 'Only the host or an admin can delete this room' }, { status: 403 })
+    }
   }
 
   await db.meeting.delete({ where: { id: meeting.id } })

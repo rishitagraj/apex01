@@ -15,7 +15,7 @@ export default async function AppLayout({
 
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, isAdmin: true },
   });
 
   // Stale session cookie pointing at a deleted account: send the user to the

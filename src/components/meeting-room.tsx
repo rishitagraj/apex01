@@ -21,14 +21,26 @@ type MeetingRoomProps = {
 
 declare global {
   interface Window {
-    JitsiMeetExternalAPI?: new (
+    IframeApi?: new (
       domain: string,
-      options: Record<string, unknown>,
-    ) => { dispose: () => void; addEventListener: (e: string, cb: () => void) => void };
+      options: {
+        room: string;
+        name: string;
+        audio: number;
+        video: number;
+        screen: number;
+        chat: number;
+        hide: number;
+        notify: number;
+        width: string;
+        height: string;
+        parentNode: HTMLElement;
+      },
+    ) => { dispose?: () => void };
   }
 }
 
-const JITSI_DOMAIN = process.env.NEXT_PUBLIC_JITSI_DOMAIN || "meet.jit.si";
+const MIROTALK_DOMAIN = process.env.NEXT_PUBLIC_MIROTALK_DOMAIN || "p2p.mirotalk.com";
 const HEARTBEAT_MS = 60_000;
 const POLL_MS = 20_000;
 
@@ -39,13 +51,13 @@ export function MeetingRoom({
   roomName,
 }: MeetingRoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const apiRef = useRef<InstanceType<NonNullable<typeof window.JitsiMeetExternalAPI>> | null>(null);
+  const apiRef = useRef<InstanceType<NonNullable<typeof window.IframeApi>> | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [joined, setJoined] = useState(false);
   const [scriptOk, setScriptOk] = useState(true);
   const [scriptLoading, setScriptLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
-  const roomUrl = `https://${JITSI_DOMAIN}/Apex01-${roomName}`;
+  const roomUrl = `https://${MIROTALK_DOMAIN}/${roomName}`;
 
   const poll = useCallback(async () => {
     try {
@@ -59,20 +71,20 @@ export function MeetingRoom({
     }
   }, [code]);
 
-  // load Jitsi external API script
+  // load MiroTalk P2P iframe API script
   useEffect(() => {
     let disposed = false;
 
     async function load() {
-      if (window.JitsiMeetExternalAPI) {
+      if (window.IframeApi) {
         setScriptLoading(false);
         mount();
         return;
       }
-      const src = `https://${JITSI_DOMAIN}/external_api.js`;
+      const src = `https://${MIROTALK_DOMAIN}/js/iframe.js`;
       const waitForExisting = () => {
         const wait = setInterval(() => {
-          if (window.JitsiMeetExternalAPI) {
+          if (window.IframeApi) {
             clearInterval(wait);
             if (!disposed) {
               setScriptLoading(false);
@@ -107,41 +119,20 @@ export function MeetingRoom({
     function mount() {
       if (!containerRef.current || disposed) return;
       try {
-        const api = new window.JitsiMeetExternalAPI!(JITSI_DOMAIN, {
-          roomName: `Apex01-${roomName}`,
+        apiRef.current = new window.IframeApi!(MIROTALK_DOMAIN, {
+          room: roomName,
+          name: userName,
+          audio: 1,
+          video: 1,
+          screen: 1,
+          chat: 0,
+          hide: 0,
+          notify: 0,
           width: "100%",
           height: "100%",
           parentNode: containerRef.current,
-          configOverwrite: {
-            disableDeepLinking: true,
-            startAudioOnly: false,
-            prejoinPageEnabled: false,
-            disableRecentParticipants: true,
-          },
-          interfaceConfigOverwrite: {
-            TOOLBAR_ALWAYS_VISIBLE: true,
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_JITSI_WATERMARK_LEFT: false,
-            SHOW_BRAND_WATERMARK: false,
-            SHOW_COMMUNICATION_YES_NO: true,
-            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-          },
-          userInfo: {
-            displayName: userName,
-          },
         });
-
-        api.addEventListener("videoConferenceJoined", () => {
-          if (!disposed) setJoined(true);
-        });
-        api.addEventListener("participantLeft", () => {
-          poll();
-        });
-        api.addEventListener("readyToClose", () => {
-          if (!disposed) setJoined(false);
-        });
-
-        apiRef.current = api;
+        if (!disposed) setJoined(true);
       } catch {
         if (!disposed) setScriptOk(false);
       }
@@ -151,9 +142,13 @@ export function MeetingRoom({
 
     return () => {
       disposed = true;
-      apiRef.current?.dispose();
+      try {
+        if (typeof apiRef.current?.dispose === "function") apiRef.current.dispose();
+      } catch {
+        // ignore
+      }
     };
-  }, [userName, roomName, poll]);
+  }, [userName, roomName]);
 
   // heartbeat + polling
   useEffect(() => {
@@ -180,7 +175,7 @@ export function MeetingRoom({
       {/* Toolbar */}
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div className="min-w-0">
-          <p className="truncate text-xs text-muted">Video · {JITSI_DOMAIN}</p>
+          <p className="truncate text-xs text-muted">Video · MiroTalk P2P</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -219,7 +214,7 @@ export function MeetingRoom({
             <div className="px-4">
               <p className="text-sm text-muted">
                 Could not load the video SDK from{" "}
-                <span className="font-mono">{JITSI_DOMAIN}</span>.
+                <span className="font-mono">{MIROTALK_DOMAIN}</span>.
               </p>
               <a
                 href={roomUrl}

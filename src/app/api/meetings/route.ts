@@ -4,6 +4,8 @@ import { verifySession } from '@/lib/auth'
 import { meetingSchema } from '@/lib/validation'
 import { makeRoomName } from '@/lib/meeting-code'
 
+export const MAX_ACTIVE_MEETINGS = 5
+
 export async function GET() {
   const userId = await verifySession()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -57,8 +59,19 @@ export async function POST(request: Request) {
   }
 
   const name = parsed.data.name
+
+  const activeCount = await db.meeting.count()
+  if (activeCount >= MAX_ACTIVE_MEETINGS) {
+    return NextResponse.json(
+      {
+        error: `Only ${MAX_ACTIVE_MEETINGS} rooms can be active at once. Ask a host to end one, or contact an admin.`,
+      },
+      { status: 409 },
+    )
+  }
+
   let code = ''
-  // Ensure the Jitsi room name is unique by trying a few times.
+  // Ensure the meeting room name is unique by trying a few times.
   for (let attempt = 0; attempt < 10; attempt++) {
     code = makeRoomName(name)
     const clash = await db.meeting.findUnique({ where: { code } })
