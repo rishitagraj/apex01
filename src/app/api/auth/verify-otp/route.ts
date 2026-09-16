@@ -5,7 +5,7 @@ import { getAuthUser } from '@/lib/auth'
 
 const verifySchema = z.object({
   email: z.string().trim().email('Enter a valid email').toLowerCase(),
-  token: z.string().trim().min(6, 'Enter the 6-digit code').max(6),
+  token: z.string().trim().min(6, 'Enter the verification code').max(8),
   type: z.enum(['email', 'signup', 'recovery']).default('email'),
 })
 

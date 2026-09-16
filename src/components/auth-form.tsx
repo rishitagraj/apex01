@@ -68,7 +68,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (data.needsEmailVerification) {
         setEmailedTo(formEmail);
         setMessage(
-          "We've sent a 6-digit verification code to your email. Enter it below to finish creating your account.",
+          "We've sent a 6-8 digit verification code to your email. Enter it below to finish creating your account.",
         );
         setPending(false);
         return;
@@ -102,7 +102,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (res.ok) {
         setEmailedTo(formEmail);
         setMessage(
-          "We've sent a 6-digit sign-in code to your email. Enter it below — it expires in a few minutes.",
+          "We've sent a 6-8 digit sign-in code to your email. Enter it below — it expires in a few minutes.",
         );
         setPending(false);
         return;
@@ -213,14 +213,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
           ) : null}
           <form onSubmit={handleVerifyCode} className="mt-6 space-y-4">
             <div>
-              <Label htmlFor="code">6-digit code</Label>
+              <Label htmlFor="code">Verification code</Label>
               <Input
                 id="code"
                 name="code"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="123456"
-                maxLength={6}
+                placeholder="12345678"
+                maxLength={8}
                 required
               />
             </div>
