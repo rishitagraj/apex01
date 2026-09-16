@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAppUrl } from '@/lib/app-url'
 
 // Returns the Google authorization URL; the client performs the redirect.
 export async function POST(request: Request) {
   try {
-    const origin = new URL(request.url).origin
+    const origin = getAppUrl(request.url)
     const supabase = await createClient()
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

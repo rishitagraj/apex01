@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { getAppUrl } from '@/lib/app-url'
 
 const forgotSchema = z.object({
   email: z.string().trim().email('Enter a valid email').toLowerCase(),
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const origin = new URL(request.url).origin
+    const origin = getAppUrl(request.url)
     const supabase = await createClient()
 
     const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {

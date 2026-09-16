@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { getAppUrl } from '@/lib/app-url'
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(50),
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     const { name, email, password } = parsed.data
     const supabase = await createClient()
 
-    const origin = new URL(request.url).origin
+    const origin = getAppUrl(request.url)
     const { data, error } = await supabase.auth.signUp({
       email,
       password,

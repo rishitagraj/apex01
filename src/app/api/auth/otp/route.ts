@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { getAppUrl } from '@/lib/app-url'
 
 const otpSchema = z.object({
   email: z.string().trim().email('Enter a valid email').toLowerCase(),
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     }
 
     const email = parsed.data.email
-    const origin = new URL(request.url).origin
+    const origin = getAppUrl(request.url)
     const supabase = await createClient()
 
     const { error } = await supabase.auth.signInWithOtp({
