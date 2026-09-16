@@ -145,7 +145,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
     const body = {
       email: emailedTo || email,
       token,
-      type: mode === "signup" ? "signup" : "email",
+      // "signup" and "magiclink" are deprecated in supabase-js; "email" verifies
+      // OTPs sent during both sign-up and sign-in.
+      type: "email",
     };
     let res: Response;
     try {
