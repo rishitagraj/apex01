@@ -62,7 +62,9 @@ export function MeetingRoom({
   const [scriptOk, setScriptOk] = useState(true);
   const [scriptLoading, setScriptLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
-  const roomUrl = MIROTALK_DOMAIN ? `https://${MIROTALK_DOMAIN}/${roomName}` : "";
+  const roomUrl = MIROTALK_DOMAIN
+    ? `https://${MIROTALK_DOMAIN}/join?room=${encodeURIComponent(roomName)}&audio=1&video=1&screen=1&chat=0&hide=0&notify=0`
+    : "";
 
   const poll = useCallback(async () => {
     try {
@@ -76,12 +78,24 @@ export function MeetingRoom({
     }
   }, [code]);
 
-  // load MiroTalk P2P iframe API script (with retry for slow/cold servers)
+  // Free-tier MiroTalk instances (Render, etc.) can take 30-90s to cold start,
+  // so keep retrying for a few minutes instead of giving up after a few seconds.
+  const MAX_RETRIES = 60;
+  const MAX_BACKOFF = 10_000;
   const [retryKey, setRetryKey] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+
+  function backoff(attempt: number) {
+    return Math.min(2_000 * Math.pow(2, attempt), MAX_BACKOFF);
+  }
+
   useEffect(() => {
     let disposed = false;
+    const timers: Array<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>> = [];
+    const later = (fn: () => void, ms: number) => {
+      timers.push(setTimeout(fn, ms));
+    };
     let retries = 0;
-    const MAX_RETRIES = 3;
 
     function mount() {
       if (!containerRef.current || disposed) return;
@@ -99,18 +113,38 @@ export function MeetingRoom({
           height: "100%",
           parentNode: containerRef.current,
         });
-        if (!disposed) setJoined(true);
+        if (!disposed) {
+          setJoined(true);
+          setScriptOk(true);
+          setScriptLoading(false);
+          setRetryCount(0);
+        }
       } catch {
         if (!disposed) setScriptOk(false);
       }
     }
 
+    function fail() {
+      if (disposed) return;
+      setScriptLoading(false);
+      setScriptOk(false);
+    }
+
+    function retry() {
+      if (disposed) return;
+      retries += 1;
+      setRetryCount(retries);
+      if (retries >= MAX_RETRIES) {
+        fail();
+        return;
+      }
+      later(load, backoff(retries));
+    }
+
     function load() {
+      if (disposed) return;
       if (MISCONFIGURED) {
-        if (!disposed) {
-          setScriptLoading(false);
-          setScriptOk(false);
-        }
+        fail();
         return;
       }
       if (window.IframeApi) {
@@ -119,7 +153,10 @@ export function MeetingRoom({
         return;
       }
       const src = `https://${MIROTALK_DOMAIN}/js/iframe.js`;
-      const waitForExisting = () => {
+      let s = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+      if (s) {
+        // Already being fetched; wait for it to define IframeApi. If it hangs
+        // (server cold start), force a fresh load after a while.
         const wait = setInterval(() => {
           if (window.IframeApi) {
             clearInterval(wait);
@@ -128,11 +165,19 @@ export function MeetingRoom({
               mount();
             }
           }
-        }, 200);
-      };
-      let s = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
-      if (s) {
-        waitForExisting();
+        }, 300);
+        timers.push(wait);
+        later(() => {
+          clearInterval(wait);
+          if (disposed) return;
+          if (window.IframeApi) {
+            setScriptLoading(false);
+            mount();
+            return;
+          }
+          s?.remove();
+          retry();
+        }, 20_000);
         return;
       }
       s = document.createElement("script");
@@ -147,15 +192,7 @@ export function MeetingRoom({
       s.onerror = () => {
         s?.remove();
         if (disposed) return;
-        if (retries < MAX_RETRIES) {
-          retries += 1;
-          const delay = 2000 * retries; // 2s, 4s, 6s backoff for cold starts
-          const t = setTimeout(load, delay);
-          if (disposed) clearTimeout(t);
-        } else {
-          setScriptLoading(false);
-          setScriptOk(false);
-        }
+        retry();
       };
       document.body.appendChild(s);
     }
@@ -164,6 +201,10 @@ export function MeetingRoom({
 
     return () => {
       disposed = true;
+      timers.forEach((t) => {
+        clearTimeout(t as ReturnType<typeof setTimeout>);
+        clearInterval(t as ReturnType<typeof setInterval>);
+      });
       try {
         if (typeof apiRef.current?.dispose === "function") apiRef.current.dispose();
       } catch {
@@ -215,6 +256,12 @@ export function MeetingRoom({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface/50">
             <Spinner className="text-apex" />
             <p className="text-sm text-muted">Loading video…</p>
+            {retryCount > 0 && (
+              <p className="max-w-sm text-center text-xs text-amber-400/90">
+                Video server is waking up — this can take up to a minute on the free plan.
+                Staying connected…
+              </p>
+            )}
           </div>
         )}
         {!scriptOk && (
