@@ -45,6 +45,7 @@ declare global {
 // fallback server rather than silently routing users to a public MiroTalk host.
 const MIROTALK_DOMAIN = process.env.NEXT_PUBLIC_MIROTALK_DOMAIN ?? "";
 const MISCONFIGURED = !MIROTALK_DOMAIN;
+const IFRAME_SCRIPT_SRC = MIROTALK_DOMAIN ? `https://${MIROTALK_DOMAIN}/js/iframe.js` : "";
 const HEARTBEAT_MS = 60_000;
 const POLL_MS = 20_000;
 
@@ -99,6 +100,16 @@ export function MeetingRoom({
 
     function mount() {
       if (!containerRef.current || disposed) return;
+      if (!window.IframeApi) {
+        // Script tag "loaded" but never defined the API: a sleeping server
+        // returns its cold-start HTML for /js/iframe.js with a 200 status, so
+        // onload fires but the class is missing. Discard it and retry.
+        document
+          .querySelectorAll(`script[src="${IFRAME_SCRIPT_SRC}"]`)
+          .forEach((el) => el.remove());
+        retry();
+        return;
+      }
       try {
         apiRef.current = new window.IframeApi!(MIROTALK_DOMAIN, {
           room: roomName,
@@ -120,7 +131,7 @@ export function MeetingRoom({
           setRetryCount(0);
         }
       } catch {
-        if (!disposed) setScriptOk(false);
+        if (!disposed) retry();
       }
     }
 
@@ -138,12 +149,13 @@ export function MeetingRoom({
         fail();
         return;
       }
+      setScriptOk(true);
       later(load, backoff(retries));
     }
 
     function load() {
       if (disposed) return;
-      if (MISCONFIGURED) {
+      if (MISCONFIGURED || !MIROTALK_DOMAIN) {
         fail();
         return;
       }
@@ -152,7 +164,7 @@ export function MeetingRoom({
         mount();
         return;
       }
-      const src = `https://${MIROTALK_DOMAIN}/js/iframe.js`;
+      const src = IFRAME_SCRIPT_SRC;
       let s = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
       if (s) {
         // Already being fetched; wait for it to define IframeApi. If it hangs
@@ -184,10 +196,16 @@ export function MeetingRoom({
       s.src = src;
       s.async = true;
       s.onload = () => {
-        if (!disposed) {
-          setScriptLoading(false);
-          mount();
+        if (disposed) return;
+        if (!window.IframeApi) {
+          // Successfully "loaded" but the server's cold-start HTML came back
+          // instead of the API script. Retry until the API actually exists.
+          s?.remove();
+          retry();
+          return;
         }
+        setScriptLoading(false);
+        mount();
       };
       s.onerror = () => {
         s?.remove();
