@@ -22,6 +22,7 @@ model User {
   hostedMeetings     Meeting[]       @relation("HostedMeetings")
   meetingMemberships MeetingMember[]
   studyDays          StudyDay[]
+  timetables         TimetableDay[]
 }
 
 model Todo {
@@ -107,4 +108,32 @@ model StudyDay {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+model TimetableDay {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slots TimetableSlot[]
+
+  @@index([userId, sortOrder])
+}
+
+model TimetableSlot {
+  id        String   @id @default(cuid())
+  dayId     String
+  subject   String
+  startAt   String
+  endAt     String
+  notes     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  day TimetableDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@index([dayId, startAt])
 }

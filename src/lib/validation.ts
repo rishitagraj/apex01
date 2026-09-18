@@ -50,6 +50,28 @@ export const assessmentSchema = z.object({
   notes: z.string().trim().max(2000).optional().or(z.literal('')),
 })
 
+const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
+
+export const timetableDaySchema = z.object({
+  name: z.string().trim().min(1, 'Day name is required').max(60),
+  sortOrder: z.number().int().min(0).optional(),
+})
+
+export const timetableSlotSchema = z
+  .object({
+    subject: z.string().trim().min(1, 'Subject is required').max(120),
+    startAt: z.string().regex(timePattern, 'Use 24-hour HH:MM format'),
+    endAt: z.string().regex(timePattern, 'Use 24-hour HH:MM format'),
+    notes: z.string().trim().max(1000).optional().or(z.literal('')),
+    sortOrder: z.number().int().min(0).optional(),
+  })
+  .refine((d) => !d.startAt || !d.endAt || d.endAt > d.startAt, {
+    message: 'End time must be after start time',
+    path: ['endAt'],
+  })
+
 export type TodoInput = z.infer<typeof todoSchema>
 export type MeetingInput = z.infer<typeof meetingSchema>
 export type AssessmentInput = z.infer<typeof assessmentSchema>
+export type TimetableDayInput = z.infer<typeof timetableDaySchema>
+export type TimetableSlotInput = z.infer<typeof timetableSlotSchema>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CalendarDays, ListChecks, ClipboardList } from "lucide-react";
 import { WeeklyPlanner } from "@/components/weekly-planner";
 import { TodoList } from "@/components/todo-list";
+import { TimetablePlanner } from "@/components/timetable-planner";
 import { AssessmentsPlanner } from "@/components/assessments-planner";
 
 const TABS = [
@@ -34,7 +35,12 @@ export function PlannerTabs() {
       </div>
 
       {tab === "week" ? <WeeklyPlanner /> : null}
-      {tab === "tasks" ? <TodoList /> : null}
+      {tab === "tasks" ? (
+        <>
+          <TodoList />
+          <TimetablePlanner />
+        </>
+      ) : null}
       {tab === "assessments" ? <AssessmentsPlanner /> : null}
     </div>
   );
