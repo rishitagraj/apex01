@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ListTodo,
+  CalendarClock,
   Timer,
   Video,
   Trophy,
@@ -17,6 +18,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/todos", label: "Planner", icon: ListTodo },
+  { href: "/todos/timetable", label: "Timetable", icon: CalendarClock, nested: true },
   { href: "/pomodoro", label: "Pomodoro", icon: Timer },
   { href: "/rooms", label: "Focus Rooms", icon: Video },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
@@ -54,6 +56,8 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
               key={link.href}
               href={link.href}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+                link.nested ? "md:ml-4" : ""
+              } ${
                 active
                   ? "bg-apex-gradient font-semibold text-white shadow-lg shadow-apex/20"
                   : "text-muted hover:bg-surface hover:text-foreground"
