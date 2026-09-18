@@ -48,8 +48,7 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
 
       <nav className="flex flex-1 flex-col gap-1 p-2 md:p-3">
         {links.map((link) => {
-          const active =
-            pathname === link.href || pathname.startsWith(link.href + "/");
+          const active = pathname === link.href;
           const Icon = link.icon;
           return (
             <Link
@@ -61,7 +60,9 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
                   : "text-muted hover:bg-surface hover:text-foreground"
               }`}
             >
-              <Icon size={18} className="shrink-0" />
+              <span className="flex w-5 shrink-0 justify-center">
+                <Icon size={18} />
+              </span>
               <span className="hidden md:inline">{link.label}</span>
             </Link>
           );
