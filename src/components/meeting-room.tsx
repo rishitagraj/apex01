@@ -333,8 +333,10 @@ export function MeetingRoom({
       <div className="absolute left-4 top-4 z-20">
         <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-sm">
           <Video size={13} className="text-apex" />
-          <span className="text-xs font-medium text-white/90">{meetingName}</span>
-          <span className="text-[11px] text-white/50">· {roomName}</span>
+          <span className="max-w-[38vw] truncate text-xs font-medium text-white/90 sm:max-w-xs">
+            {meetingName}
+          </span>
+          <span className="hidden text-[11px] text-white/50 sm:inline">· {roomName}</span>
         </div>
       </div>
 
@@ -355,15 +357,16 @@ export function MeetingRoom({
           href={roomUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-sm transition hover:bg-black/70"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/50 p-1.5 text-xs font-semibold text-white/90 backdrop-blur-sm transition hover:bg-black/70 sm:px-3 sm:py-1.5"
         >
-          <Video size={14} className="text-apex" /> Open in new tab
+          <Video size={14} className="text-apex" />
+          <span className="hidden sm:inline">Open in new tab</span>
         </a>
       </div>
 
       {/* Floating participants panel */}
       {showPanel && (
-        <aside className="absolute right-4 top-16 z-30 flex h-[calc(100%-5rem)] w-72 flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/95 shadow-2xl backdrop-blur-sm">
+        <aside className="absolute right-4 top-16 z-30 flex h-[calc(100%-5rem)] w-72 max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/95 shadow-2xl backdrop-blur-sm">
           <header className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Users size={15} className="text-muted" />

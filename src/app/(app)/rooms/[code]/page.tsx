@@ -28,7 +28,7 @@ export default async function RoomPage({
   });
 
   return (
-    <div className="h-[calc(100vh-4rem)] min-h-0">
+    <div className="h-[calc(100dvh-4rem)] min-h-0">
       <MeetingRoom
         code={code}
         roomName={code}

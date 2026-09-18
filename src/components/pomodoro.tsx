@@ -354,12 +354,10 @@ export function Pomodoro() {
         ))}
       </div>
 
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex w-full max-w-[340px] items-center justify-center">
         <svg
-          width="340"
-          height="340"
           viewBox="0 0 340 340"
-          className="drop-shadow-[0_0_35px_rgba(255,122,26,0.12)]"
+          className="aspect-square w-full drop-shadow-[0_0_35px_rgba(255,122,26,0.12)]"
         >
           <defs>
             <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -408,11 +406,10 @@ export function Pomodoro() {
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           <p className="text-sm font-medium uppercase tracking-[0.3em] text-muted">{cfg.label}</p>
           <p
-            className="font-mono font-bold tabular-nums"
-            style={{
-              color: cfg.color,
-              fontSize: secondsLeft >= 5400 ? "3rem" : "3.75rem",
-            }}
+            className={`font-mono font-bold tabular-nums ${
+              secondsLeft >= 5400 ? "text-5xl sm:text-6xl" : "text-6xl sm:text-7xl"
+            }`}
+            style={{ color: cfg.color }}
           >
             {formatClock(secondsLeft)}
           </p>

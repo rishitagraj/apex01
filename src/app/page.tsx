@@ -56,7 +56,7 @@ export default async function Home() {
       <div className="pointer-events-none absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-apex/20 blur-[140px]" />
       <div className="pointer-events-none absolute right-0 top-1/3 h-[300px] w-[300px] rounded-full bg-apex2/15 blur-[120px]" />
 
-      <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
+      <header className="relative mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 sm:px-6">
         <Wordmark />
         <div className="flex items-center gap-3">
           <Link href="/login" className="btn btn-ghost">
