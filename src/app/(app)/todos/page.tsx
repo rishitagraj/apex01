@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PlannerTabs } from "@/components/planner-tabs";
+import { TimetablePlanner } from "@/components/timetable-planner";
 
 export const metadata: Metadata = { title: "Planner" };
 
@@ -13,6 +14,7 @@ export default function TodosPage() {
         </p>
       </header>
       <PlannerTabs />
+      <TimetablePlanner />
     </div>
   );
 }
