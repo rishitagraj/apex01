@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Calculator as CalcIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui";
 
@@ -210,14 +211,22 @@ export function Calculator({
       </div>
 
       {open ? (
-        <div className="mt-4">
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex h-14 items-center justify-end rounded-xl border border-line bg-surface px-4 font-mono text-2xl font-semibold tabular-nums tracking-tight overflow-hidden"
+        <AnimatePresence initial={false}>
+          <motion.div
+            key="panel"
+            initial={{ opacity: 0, y: -14, scale: 0.94, filter: "blur(5px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 8, scale: 0.97, filter: "blur(5px)" }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-4"
           >
-            <span className="truncate text-foreground">{display}</span>
-          </div>
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex h-14 items-center justify-end rounded-xl border border-line bg-surface px-4 font-mono text-2xl font-semibold tabular-nums tracking-tight overflow-hidden"
+            >
+              <span className="truncate text-foreground">{display}</span>
+            </div>
 
           <div className="mt-3 grid grid-cols-4 gap-2">
             {NUMBER_KEYS.map((label) => {
@@ -271,7 +280,8 @@ export function Calculator({
           <p className="mt-3 hidden text-center text-xs text-muted sm:block">
             Tip: your keyboard works too — digits, + − × ÷, Enter, Backspace, Esc.
           </p>
-        </div>
+          </motion.div>
+        </AnimatePresence>
       ) : (
         <p className="mt-1 text-xs text-muted">Quick math for study breaks.</p>
       )}
@@ -290,7 +300,19 @@ export function CalculatorToggle({ className = "" }: { className?: string }) {
       >
         <CalcIcon size={16} /> {open ? "Close calculator" : "Open calculator"}
       </button>
-      {open ? <Calculator className="mt-3" /> : null}
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            key="calc"
+            initial={{ opacity: 0, y: -18, scale: 0.9, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, scale: 0.94, filter: "blur(4px)" }}
+            transition={{ type: "spring", stiffness: 380, damping: 22 }}
+          >
+            <Calculator className="mt-3" />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
