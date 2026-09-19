@@ -24,10 +24,22 @@ const INKS = ["#1f1f28", "#1d2a66", "#7a1f2f"];
 type Point = { x: number; y: number };
 type Rect = { minX: number; maxX: number; minY: number; maxY: number };
 
+let sessionPromise: Promise<InferenceSession> | null = null;
+
+function getSession() {
+  if (!sessionPromise) {
+    sessionPromise = (async () => {
+      const ort = await import("onnxruntime-web");
+      ort.env.wasm.wasmPaths = WASM_CDN;
+      return ort.InferenceSession.create(MODEL_URL, { executionProviders: ["wasm"] });
+    })();
+  }
+  return sessionPromise;
+}
+
 export function HandwritingPad({ onResult }: { onResult: (text: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sessionRef = useRef<Promise<InferenceSession> | null>(null);
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
   const colorRef = useRef(INKS[0]);
   const erasingRef = useRef(false);
@@ -39,6 +51,14 @@ export function HandwritingPad({ onResult }: { onResult: (text: string) => void 
   const [busy, setBusy] = useState(false);
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cloud, setCloud] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ocr")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setCloud(d ? Boolean(d.configured) : null))
+      .catch(() => setCloud(null));
+  }, []);
 
   useEffect(() => {
     colorRef.current = color;
@@ -53,17 +73,6 @@ export function HandwritingPad({ onResult }: { onResult: (text: string) => void 
       setError("Could not load the handwriting model. Check your connection and retry.");
     });
   }, []);
-
-  function getSession() {
-    if (!sessionRef.current) {
-      sessionRef.current = (async () => {
-        const ort = await import("onnxruntime-web");
-        ort.env.wasm.wasmPaths = WASM_CDN;
-        return ort.InferenceSession.create(MODEL_URL, { executionProviders: ["wasm"] });
-      })();
-    }
-    return sessionRef.current;
-  }
 
   useEffect(() => {
     const container = containerRef.current!;
@@ -250,24 +259,43 @@ export function HandwritingPad({ onResult }: { onResult: (text: string) => void 
     return text;
   }
 
-  async function convert() {
-    if (!hasInk || busy) return;
-    setError(null);
-    setBusy(true);
+  async function recognizeCloud(): Promise<{ text: string | null; skippable: boolean }> {
+    const canvas = canvasRef.current!;
+    try {
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: canvas.toDataURL("image/png") }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const skippable = data?.code === "NOT_CONFIGURED" || data?.code === "TOO_LARGE";
+        return { text: null, skippable };
+      }
+      const text = typeof data?.text === "string" ? data.text.trim() : "";
+      return { text: text || null, skippable: true };
+    } catch {
+      return { text: null, skippable: false };
+    }
+  }
+
+  async function recognizeOffline(): Promise<boolean> {
+    const { w, h } = sizeRef.current;
+    if (!w || !h) return false;
+    const canvas = canvasRef.current!;
     try {
       const session = await getSession();
-      const { w, h } = sizeRef.current;
-      if (!w || !h) return;
-      const canvas = canvasRef.current!;
       const sheet = document.createElement("canvas");
       sheet.width = w;
       sheet.height = h;
       const sctx = sheet.getContext("2d")!;
       sctx.drawImage(canvas, 0, 0, w, h);
       const words = segmentWords(sctx, w, h);
+      if (words.length === 0) return false;
+      const ort = await import("onnxruntime-web");
       const parts: string[] = [];
       for (const rect of words) {
-        const tensor = new (await import("onnxruntime-web")).Tensor(
+        const tensor = new ort.Tensor(
           "float32",
           wordToTensor(sheet, rect),
           [1, 1, HEIGHT, WIDTH],
@@ -278,13 +306,35 @@ export function HandwritingPad({ onResult }: { onResult: (text: string) => void 
         if (text) parts.push(text);
       }
       const text = parts.join(" ");
-      if (text) {
-        setLastResult(text);
-        onResult(text);
-        clear();
-      }
+      if (!text) return false;
+      onResult(text);
+      setLastResult(text);
+      clear();
+      return true;
     } catch {
-      setError("Recognition failed. Try neater, block capital letters.");
+      return false;
+    }
+  }
+
+  async function convert() {
+    if (!hasInk || busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const cloud = await recognizeCloud();
+      if (cloud.text) {
+        const cleaned = cloud.text.replace(/\r?\n+/g, " ").replace(/\s+/g, " ").trim();
+        if (cleaned) {
+          onResult(cleaned);
+          setLastResult(cleaned);
+          clear();
+        }
+      } else {
+        const usedOffline = await recognizeOffline();
+        if (!usedOffline && !cloud.skippable) {
+          setError("Recognition failed. Try neater, block capital letters.");
+        }
+      }
     } finally {
       setBusy(false);
     }
@@ -342,9 +392,16 @@ export function HandwritingPad({ onResult }: { onResult: (text: string) => void 
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted">
-          Write a word (leave a gap between words), then press Convert. Block capitals read best.
-        </p>
+        <div className="text-xs text-muted">
+          <p>Write any way you like — cursive included — then press Convert to text.</p>
+          {cloud !== null ? (
+            <p className="mt-0.5">
+              {cloud
+                ? "Cloud OCR is on — reads cursive, sentences and punctuation."
+                : "Cloud OCR not configured — using the smaller offline model. Add a Google Vision API key for full cursive/sentence reading."}
+            </p>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={convert}
