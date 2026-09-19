@@ -39,19 +39,25 @@ function AuthBackground() {
 function PomodoroRing() {
   return (
     <div className="float-chip relative h-48 w-48" style={{ animationDuration: "7s" }}>
-      <div
-        className="absolute inset-0 rounded-full opacity-90"
-        style={{
-          background:
-            "conic-gradient(from 0deg, var(--apex) 0deg, var(--apex2) 130deg, transparent 220deg)",
-          animation: "spin-slow 9s linear infinite",
-        }}
-      />
-      <div className="absolute inset-3 rounded-full bg-background" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <p className="font-mono text-4xl font-bold tracking-tight">25:00</p>
-        <p className="mt-1 text-xs text-muted">deep focus</p>
-      </div>
+      <motion.div
+        whileHover={{ scale: 1.18 }}
+        transition={{ type: "spring", stiffness: 240, damping: 16 }}
+        className="relative h-full w-full cursor-pointer"
+      >
+        <div
+          className="absolute inset-0 rounded-full opacity-90"
+          style={{
+            background:
+              "conic-gradient(from 0deg, var(--apex) 0deg, var(--apex2) 130deg, transparent 220deg)",
+            animation: "spin-slow 9s linear infinite",
+          }}
+        />
+        <div className="absolute inset-3 rounded-full bg-background" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <p className="font-mono text-4xl font-bold tracking-tight">25:00</p>
+          <p className="mt-1 text-xs text-muted">deep focus</p>
+        </div>
+      </motion.div>
     </div>
   );
 }
