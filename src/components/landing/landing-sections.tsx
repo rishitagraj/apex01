@@ -5,12 +5,12 @@ import { useEffect, useRef } from "react";
 import { animate, motion, useInView, useMotionValue, useReducedMotion } from "motion/react";
 import {
   ArrowRight,
+  CalendarDays,
+  ClipboardList,
   Gauge,
   ListTodo,
   PenLine,
   Video,
-  Trophy,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 
@@ -58,32 +58,32 @@ const FEATURES: Feature[] = [
   {
     icon: Gauge,
     title: "Graphic Pomodoro",
-    desc: "An animated focus timer with focus and break cycles — tuned to keep you in flow without staring at a clock.",
+    desc: "Focus and break cycles with a satisfying animated timer. Every completed session is banked automatically.",
   },
   {
     icon: ListTodo,
-    title: "Smart planner",
-    desc: "Priorities, due dates and notes. Your whole week mapped out in one calm place.",
+    title: "Weekly planner",
+    desc: "To-dos with priorities, due dates and notes. Map your whole week in one place instead of juggling tabs.",
   },
   {
-    icon: PenLine,
-    title: "Scribble to text",
-    desc: "Write tasks by hand on your iPad or pen tablet — on-device OCR, upgraded to full cursive via cloud.",
+    icon: CalendarDays,
+    title: "Timetable",
+    desc: "Build a reusable weekly schedule — add subjects, slots and notes, then study the same rhythm every week.",
+  },
+  {
+    icon: ClipboardList,
+    title: "Assessments",
+    desc: "Track exams, quizzes, assignments and projects with their weight and a readiness status as you study.",
   },
   {
     icon: Video,
     title: "Live focus rooms",
-    desc: "Real video study rooms. Join with a room code and study side-by-side with friends from anywhere.",
+    desc: "Join a room with a code and study together over real video — your minutes count on the leaderboard.",
   },
   {
-    icon: Trophy,
-    title: "Leaderboards",
-    desc: "Every minute in a focus room counts. Compete on hours and climb Apex01's global ranks.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Private & secure",
-    desc: "Email + password auth with hashed credentials and signed, httpOnly session cookies.",
+    icon: PenLine,
+    title: "Scribble to text",
+    desc: "Jot a task by hand on your iPad or pen tablet and watch it become real text — on-device, with cloud OCR for cursive.",
   },
 ];
 
@@ -160,12 +160,31 @@ function Features() {
   );
 }
 
-const STATS = [
-  { value: 12400, suffix: "+", label: "Focus sessions logged" },
-  { value: 2_100_000, compact: true, label: "Minutes focused" },
-  { value: 42, suffix: " live", label: "Study rooms right now" },
-  { value: 98, suffix: "%", label: "On-task with Pomodoro" },
-];
+export type LandingStats = {
+  users: number;
+  minutes: number;
+  rooms: number;
+  tasks: number;
+};
+
+type Stat = {
+  value: number;
+  label: string;
+  compact?: boolean;
+};
+
+function buildStats(stats: LandingStats): Stat[] {
+  return [
+    { value: stats.users, label: "Students on Apex01" },
+    {
+      value: stats.minutes,
+      label: "Minutes of focus tracked",
+      compact: stats.minutes >= 1_000_000,
+    },
+    { value: stats.rooms, label: "Study rooms hosted" },
+    { value: stats.tasks, label: "Tasks planned" },
+  ];
+}
 
 function formatStat(x: number, compact: boolean, decimals: number) {
   if (compact) {
@@ -181,7 +200,7 @@ function StatCard({
   stat,
   index,
 }: {
-  stat: (typeof STATS)[number];
+  stat: Stat;
   index: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -192,9 +211,10 @@ function StatCard({
 
   useEffect(() => {
     if (!inView) return;
+    const roundFor = (x: number) => (stat.compact ? x : Math.round(x));
     if (reduce) {
       if (ref.current)
-        ref.current.textContent = formatStat(v.get(), stat.compact === true, decimals);
+        ref.current.textContent = formatStat(roundFor(v.get()), stat.compact === true, decimals);
       return;
     }
     const controls = animate(v, stat.value, {
@@ -202,7 +222,7 @@ function StatCard({
       ease: [0.16, 1, 0.3, 1],
       onUpdate: (latest) => {
         if (ref.current)
-          ref.current.textContent = formatStat(latest, stat.compact === true, decimals);
+          ref.current.textContent = formatStat(roundFor(latest), stat.compact === true, decimals);
       },
     });
     return () => controls.stop();
@@ -219,20 +239,20 @@ function StatCard({
     >
       <p className="text-gradient text-4xl font-bold tracking-tight sm:text-5xl">
         <span ref={ref}>0</span>
-        {stat.suffix}
       </p>
       <p className="mt-2 text-sm text-muted">{stat.label}</p>
     </motion.div>
   );
 }
 
-function Stats() {
+function Stats({ stats }: { stats: LandingStats }) {
+  const list = buildStats(stats);
   return (
     <section className="relative mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6">
       <div className="card relative overflow-hidden p-8 sm:p-12">
         <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-apex/15 blur-[90px]" />
         <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-          {STATS.map((s, i) => (
+          {list.map((s, i) => (
             <StatCard key={s.label} stat={s} index={i} />
           ))}
         </div>
@@ -344,12 +364,12 @@ export function FinalCta() {
   );
 }
 
-export function LandingSections() {
+export function LandingSections({ stats }: { stats: LandingStats }) {
   return (
     <>
       <Marquee />
       <Features />
-      <Stats />
+      <Stats stats={stats} />
       <HowItWorks />
       <FinalCta />
     </>

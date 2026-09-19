@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
-import { ArrowRight, Check, Flame, Users, Trophy, Clock3 } from "lucide-react";
+import { ArrowRight, Check, Flame, Trophy, Users, TrendingUp, Clock3 } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 
 const LINE_ONE = ["Plan.", "Focus."];
@@ -211,7 +211,7 @@ function MockDashboard() {
               </p>
             </div>
             <span className="chip">
-              <Trophy size={12} className="text-apex" /> top 1% this week
+              <TrendingUp size={12} className="text-apex" /> on pace this week
             </span>
           </div>
           <svg viewBox="0 0 600 60" className="mt-3 h-14 w-full" preserveAspectRatio="none">
@@ -282,7 +282,7 @@ export function LandingHero({ signedIn }: { signedIn: boolean }) {
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-apex opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-apex" />
         </span>
-        Version 1.0 — build your study empire
+        Version 2.A — build your study empire
       </motion.div>
 
       <div className="relative">

@@ -4,9 +4,15 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { LandingHero } from "./landing-hero";
-import { LandingSections } from "./landing-sections";
+import { LandingSections, type LandingStats } from "./landing-sections";
 
-export function LandingPage({ signedIn }: { signedIn: boolean }) {
+export function LandingPage({
+  signedIn,
+  stats,
+}: {
+  signedIn: boolean;
+  stats: LandingStats;
+}) {
   return (
     <main className="relative flex-1 overflow-x-clip">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -66,7 +72,7 @@ export function LandingPage({ signedIn }: { signedIn: boolean }) {
       </header>
 
       <LandingHero signedIn={signedIn} />
-      <LandingSections />
+      <LandingSections stats={stats} />
 
       <footer className="relative border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted sm:flex-row">
