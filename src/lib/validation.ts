@@ -18,6 +18,7 @@ export const loginSchema = z.object({
 export const todoSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(200),
   notes: z.string().trim().max(2000).optional().or(z.literal('')),
+  scribble: z.string().max(1_500_000).optional().or(z.literal('')).nullable(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
   dueDate: z
     .union([
