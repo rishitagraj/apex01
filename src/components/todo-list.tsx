@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Check, CalendarClock, AlignLeft, PenLine, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, Check, CalendarClock, AlignLeft, PenLine } from "lucide-react";
 import { Button, Input, Label, Badge, Card, EmptyState } from "@/components/ui";
-import { ScribblePad } from "@/components/scribble-pad";
+import { HandwritingPad } from "@/components/handwriting-pad";
 
 type Priority = "LOW" | "MEDIUM" | "HIGH";
 type Todo = {
   id: string;
   title: string;
   notes: string | null;
-  scribble: string | null;
   priority: Priority;
   completed: boolean;
   dueDate: string | null;
@@ -32,9 +31,7 @@ export function TodoList() {
   const [notes, setNotes] = useState("");
   const [priority, setPriority] = useState<Priority>("MEDIUM");
   const [dueDate, setDueDate] = useState("");
-  const [scribble, setScribble] = useState<string | null>(null);
-  const [showPad, setShowPad] = useState(false);
-  const [viewingScribble, setViewingScribble] = useState<string | null>(null);
+  const [showPen, setShowPen] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -45,31 +42,18 @@ export function TodoList() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (!viewingScribble) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setViewingScribble(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [viewingScribble]);
-
-  const handleScribble = useCallback((image: string | null) => setScribble(image), []);
+  function handleHandwriting(text: string) {
+    setTitle((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+  }
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
     setError("");
-    if (!title.trim() && !scribble) return;
+    if (!title.trim()) return;
     const res = await fetch("/api/todos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: title.trim() || "Scribble note",
-        notes: notes.trim(),
-        scribble,
-        priority,
-        dueDate: dueDate || null,
-      }),
+      body: JSON.stringify({ title: title.trim(), notes: notes.trim(), priority, dueDate: dueDate || null }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -77,8 +61,7 @@ export function TodoList() {
       setTitle("");
       setNotes("");
       setDueDate("");
-      setScribble(null);
-      setShowPad(false);
+      setShowPen(false);
     } else {
       setError("Could not add the task.");
     }
@@ -163,48 +146,29 @@ export function TodoList() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div>
             <button
               type="button"
-              onClick={() => setShowPad((v) => !v)}
+              onClick={() => setShowPen((v) => !v)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-                scribble
+                showPen
                   ? "border-apex/40 bg-apex/10 text-apex"
                   : "border-line text-muted hover:text-foreground"
               }`}
             >
               <PenLine size={14} />
-              {scribble ? "Edit scribble" : showPad ? "Hide scribble pad" : "Add a scribble (iPad / pen)"}
+              {showPen ? "Hide handwriting pad" : "Write the task by hand (scribble to text)"}
             </button>
-            {scribble ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setScribble(null);
-                  setShowPad(false);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-medium text-rose-400 transition hover:bg-rose-500/10"
-              >
-                <Trash2 size={14} /> Remove scribble
-              </button>
-            ) : null}
           </div>
 
-          {showPad ? (
+          {showPen ? (
             <div>
               <p className="mb-2 text-xs text-muted">
-                Draw with your finger, an Apple Pencil, or a pen tablet — the sketch gets attached to this task.
+                Draw with your finger, an Apple Pencil, or a pen tablet. Recognised words fill the
+                task title above.
               </p>
-              <ScribblePad onChange={handleScribble} />
+              <HandwritingPad onResult={handleHandwriting} />
             </div>
-          ) : null}
-
-          {!showPad && scribble ? (
-            <img
-              src={scribble}
-              alt="Scribble preview"
-              className="max-h-28 rounded-lg border border-line bg-white object-contain"
-            />
           ) : null}
 
           {error ? <p className="text-sm text-rose-400">{error}</p> : null}
@@ -281,19 +245,6 @@ export function TodoList() {
                     ) : null}
                   </div>
                   {todo.notes ? <p className="mt-1 text-xs text-muted">{todo.notes}</p> : null}
-                  {todo.scribble ? (
-                    <button
-                      type="button"
-                      onClick={() => setViewingScribble(todo.scribble)}
-                      className="mt-2 block w-full overflow-hidden rounded-lg border border-line transition hover:border-apex/40"
-                    >
-                      <img
-                        src={todo.scribble}
-                        alt="Task scribble"
-                        className="max-h-36 w-full bg-white object-contain"
-                      />
-                    </button>
-                  ) : null}
                 </div>
 
                 <button
@@ -308,28 +259,6 @@ export function TodoList() {
           ))}
         </ul>
       )}
-
-      {viewingScribble ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setViewingScribble(null)}
-        >
-          <button
-            type="button"
-            onClick={() => setViewingScribble(null)}
-            aria-label="Close scribble"
-            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-          >
-            <X size={18} />
-          </button>
-          <img
-            src={viewingScribble}
-            alt="Scribble"
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] max-w-full rounded-2xl bg-white shadow-2xl"
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

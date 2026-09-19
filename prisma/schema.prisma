@@ -30,7 +30,6 @@ model Todo {
   userId    String
   title     String
   notes     String?
-  scribble  String?
   priority  Priority  @default(MEDIUM)
   completed Boolean   @default(false)
   dueDate   DateTime?

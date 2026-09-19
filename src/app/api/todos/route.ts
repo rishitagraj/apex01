@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const { title, notes, priority, dueDate, scribble } = parsed.data
+  const { title, notes, priority, dueDate } = parsed.data
   const normalized = notes === '' || notes === undefined ? null : notes
 
   const todo = await db.todo.create({
@@ -36,7 +36,6 @@ export async function POST(request: Request) {
       userId,
       title,
       notes: normalized,
-      scribble: typeof scribble === 'string' && scribble.length > 0 ? scribble : null,
       priority: priority ?? 'MEDIUM',
       dueDate: dueDate ? new Date(dueDate) : null,
     },
