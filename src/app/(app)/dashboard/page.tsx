@@ -14,6 +14,7 @@ import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card, Badge, formatMinutes } from "@/components/ui";
 import { WeeklyChart } from "@/components/weekly-chart";
+import { Calculator } from "@/components/calculator";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
@@ -133,6 +134,11 @@ export default async function DashboardPage() {
           </ul>
         )}
       </Card>
+
+      {/* Calculator */}
+      <div className="max-w-md">
+        <Calculator defaultOpen={false} />
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Pomodoro } from "@/components/pomodoro";
+import { CalculatorToggle } from "@/components/calculator";
 
 export const metadata: Metadata = { title: "Pomodoro" };
 
@@ -26,6 +27,10 @@ export default function PomodoroPage() {
           tells you when a session finishes. Completing a focus session automatically rolls
           into a break — after every fourth one you get a longer reset.
         </p>
+      </div>
+
+      <div className="mx-auto w-full max-w-md">
+        <CalculatorToggle />
       </div>
     </div>
   );
