@@ -25,14 +25,26 @@ model User {
   timetables          TimetableDay[]
   subjects            Subject[]
   conceptProgress     UserConceptProgress[]
-  conceptChecklists   ConceptChecklist[]
-  conceptResources    ConceptResource[]
-  conceptRevisions    ConceptRevision[]
+conceptChecklists  ConceptChecklist[]
+  conceptResources   ConceptResource[]
+  conceptRevisions   ConceptRevision[]
   conceptDependencies ConceptDependency[]
-  conceptNotes        ConceptNote[]
-  conceptMistakes     ConceptMistake[]
-  revisionSchedules   RevisionSchedule[]
-  syllabusImports     SyllabusImport[]
+  conceptNotes       ConceptNote[]
+  conceptMistakes    ConceptMistake[]
+  revisionSchedules  RevisionSchedule[]
+  syllabusImports    SyllabusImport[]
+  syllabusSettings   UserSyllabusSettings?
+}
+
+model UserSyllabusSettings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  examTags          String[] @default(["NCERT", "CBSE", "JEE Main", "NEET"])
+  autoRevisionDays  Int      @default(7)
+  weeklyTargetHours Int      @default(20)
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Todo {
@@ -379,16 +391,17 @@ model RevisionSchedule {
 }
 
 model SyllabusImport {
-  id           String       @id @default(cuid())
-  userId       String
-  course       String
-  pdfName      String?
-  status       ImportStatus @default(PENDING)
-  instructions String?
-  warnings     Json?
-  summary      Json?
-  createdAt    DateTime     @default(now())
-  completedAt  DateTime?
+  id            String       @id @default(cuid())
+  userId        String
+  course        String
+  pdfName       String?
+  fileKey       String?
+  status        ImportStatus @default(PENDING)
+  instructions  String?
+  warnings      Json?
+  summary       Json?
+  createdAt     DateTime     @default(now())
+  completedAt   DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

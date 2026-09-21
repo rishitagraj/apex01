@@ -202,5 +202,89 @@ export interface ImportRecordVM {
 export interface SyllabusSettings {
   defaultExamTags: string[];
   autoRevisionDays: number;
-  weeklyStudyTarget: number;
+  weeklyTargetHours: number;
+}
+
+export interface ResourceDraft {
+  kind: ResourceKind;
+  title: string;
+  url: string | null;
+}
+
+export interface ConceptDraft {
+  name: string;
+  description?: string | null;
+  difficulty?: string;
+  estimatedHours?: number | null;
+  prerequisites?: string[];
+  learningObjectives?: string[];
+  tags?: string[];
+  resources?: ResourceDraft[];
+}
+
+export interface ChapterDraft {
+  name: string;
+  description?: string | null;
+  concepts: ConceptDraft[];
+}
+
+export interface SubjectDraft {
+  name: string;
+  classLevel?: string | null;
+  examTags?: string[];
+  chapters: ChapterDraft[];
+}
+
+export interface RoadmapDraft {
+  course: string;
+  subjects: SubjectDraft[];
+  warnings: string[];
+  userInstructionsApplied?: string[];
+  revisionDays?: number[];
+}
+
+export interface ParseOptions {
+  detectPrerequisites: boolean;
+  estimateHours: boolean;
+  generateRevisionSchedule: boolean;
+  generateChecklist: boolean;
+  mergeDuplicates: boolean;
+  learningObjectives: boolean;
+  dependencyGraph: boolean;
+  keepPdf: boolean;
+}
+
+export const DEFAULT_PARSE_OPTIONS: ParseOptions = {
+  detectPrerequisites: true,
+  estimateHours: true,
+  generateRevisionSchedule: true,
+  generateChecklist: true,
+  mergeDuplicates: true,
+  learningObjectives: true,
+  dependencyGraph: true,
+  keepPdf: false,
+};
+
+export interface HeatmapCell {
+  date: string;
+  count: number;
+}
+
+export interface TimelinePoint {
+  date: string;
+  revisedCumulative: number;
+  totalConcepts: number;
+}
+
+export interface Insights {
+  heatmap: HeatmapCell[];
+  timeline: TimelinePoint[];
+}
+
+export interface StorageUsage {
+  usedBytes: number;
+  quotaBytes: number;
+  files: { key: string; title: string; size: number }[];
+  largest: { key: string; title: string; size: number }[];
+  retainedPdfs: number;
 }

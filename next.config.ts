@@ -4,7 +4,12 @@ import type { NextConfig } from "next";
 const projectRoot = path.resolve(process.cwd());
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pg", "@prisma/adapter-pg"],
+  serverExternalPackages: [
+    "pg",
+    "@prisma/adapter-pg",
+    "pdf-parse",
+    "pdfjs-dist",
+  ],
   async redirects() {
     return [{ source: "/tasks", destination: "/todos", permanent: true }];
   },

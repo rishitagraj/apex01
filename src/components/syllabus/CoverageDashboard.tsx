@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Upload,
@@ -10,19 +10,66 @@ import {
   RefreshCw,
   Layers,
   Sparkles,
+  List,
+  Network,
+  TrendingUp,
+  CalendarCheck,
+  Loader2,
 } from "lucide-react";
 import { StatsCards } from "@/components/syllabus/StatsCards";
 import { FilterBar, DEFAULT_FILTERS, type SyllabusFilters } from "@/components/syllabus/FilterBar";
 import { ChapterCard } from "@/components/syllabus/ChapterCard";
 import { ConceptDrawer } from "@/components/syllabus/ConceptDrawer";
+import { KnowledgeGraph } from "@/components/syllabus/KnowledgeGraph";
+import { RevisionHeatmap } from "@/components/syllabus/RevisionHeatmap";
+import { CoverageTimeline } from "@/components/syllabus/CoverageTimeline";
 import { useSyllabus } from "@/hooks/useSyllabus";
-import type { ConceptVM, SyllabusTree } from "@/types/syllabus";
+import type { ConceptVM, Insights, SyllabusTree } from "@/types/syllabus";
 
-export function CoverageDashboard({ initialTree }: { initialTree: SyllabusTree }) {
+type ViewMode = "list" | "graph";
+
+export function CoverageDashboard({
+  initialTree,
+  initialSubjectId,
+  initialFocusId,
+}: {
+  initialTree: SyllabusTree;
+  initialSubjectId?: string;
+  initialFocusId?: string;
+}) {
   const { tree, busy, save, refresh } = useSyllabus(initialTree);
-  const [filters, setFilters] = useState<SyllabusFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<SyllabusFilters>(() => ({
+    ...DEFAULT_FILTERS,
+    subject: initialSubjectId ?? DEFAULT_FILTERS.subject,
+  }));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [openConcept, setOpenConcept] = useState<ConceptVM | null>(null);
+  const [openConcept, setOpenConcept] = useState<ConceptVM | null>(() =>
+    findConcept(tree.subjects, initialFocusId),
+  );
+  const [view, setView] = useState<ViewMode>("list");
+  const [insights, setInsights] = useState<Insights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+  const [insightsTick, setInsightsTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const q = filters.subject !== "all" ? `?subject=${encodeURIComponent(filters.subject)}` : "";
+    fetch(`/api/syllabus/insights${q}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("insights failed"))))
+      .then((data: Insights) => {
+        if (cancelled) return;
+        setInsights(data);
+      })
+      .catch(() => {
+        if (!cancelled) setInsights(null);
+      })
+      .finally(() => {
+        if (!cancelled) setInsightsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.subject, insightsTick]);
 
   const availableTags = useMemo(() => {
     const set = new Set<string>();
@@ -90,7 +137,10 @@ export function CoverageDashboard({ initialTree }: { initialTree: SyllabusTree }
   const resultCount = chapters.reduce((n, c) => n + c.chapter.concepts.length, 0);
 
   const quickRevise = useCallback(
-    (concept: ConceptVM) => void save("revise", concept.id, { kind: "MANUAL" }),
+    (concept: ConceptVM) => {
+      void save("revise", concept.id, { kind: "MANUAL" });
+      setInsightsTick((t) => t + 1);
+    },
     [save],
   );
   const toggleFlag = useCallback(
@@ -189,26 +239,87 @@ export function CoverageDashboard({ initialTree }: { initialTree: SyllabusTree }
             resultCount={resultCount}
           />
 
-          <div className="space-y-3">
-            {chapters.map(({ chapter }) => (
-              <ChapterCard
-                key={chapter.id}
-                chapter={chapter}
-                expanded={!!expanded[chapter.id]}
-                onToggle={() =>
-                  setExpanded((prev) => ({ ...prev, [chapter.id]: !prev[chapter.id] }))
-                }
-                onOpenConcept={(c) => setOpenConcept(c)}
-                onQuickRevise={quickRevise}
-                onToggleRevisionFlag={toggleFlag}
-              />
-            ))}
-            {chapters.length === 0 ? (
-              <p className="py-12 text-center text-sm text-muted">
-                No chapters match the current filters.
-              </p>
-            ) : null}
+          <div className="card rounded-3xl p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <TrendingUp size={16} className="text-apex" /> Activity insights
+              </h2>
+              <span className="text-[11px] text-muted">
+                {filters.subject === "all" ? "All subjects" : "Scoped to selected subject"}
+              </span>
+            </div>
+            {insightsLoading ? (
+              <div className="flex items-center gap-2 py-10 text-sm text-muted">
+                <Loader2 size={16} className="animate-spin" /> Crunching your study history…
+              </div>
+            ) : insights ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div>
+                  <p className="mb-2 flex items-center gap-1.5 text-xs text-muted">
+                    <CalendarCheck size={13} /> Revisions in the last 16 weeks
+                  </p>
+                  <RevisionHeatmap cells={insights.heatmap} />
+                </div>
+                <div>
+                  <p className="mb-2 flex items-center gap-1.5 text-xs text-muted">
+                    <TrendingUp size={13} /> Coverage growth
+                  </p>
+                  <CoverageTimeline points={insights.timeline} />
+                </div>
+              </div>
+            ) : (
+              <p className="py-6 text-sm text-muted">No revision activity yet — mark concepts as revised to see trends.</p>
+            )}
           </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-1">
+              <button
+                onClick={() => setView("list")}
+                aria-pressed={view === "list"}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  view === "list" ? "bg-apex-gradient text-white" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <List size={14} className="mr-1 inline" /> List
+              </button>
+              <button
+                onClick={() => setView("graph")}
+                aria-pressed={view === "graph"}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  view === "graph" ? "bg-apex-gradient text-white" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <Network size={14} className="mr-1 inline" /> Knowledge graph
+              </button>
+            </div>
+            <span className="text-[11px] text-muted">{resultCount} concepts visible</span>
+          </div>
+
+          {view === "graph" ? (
+            <KnowledgeGraph tree={tree} />
+          ) : (
+            <div className="space-y-3">
+              {chapters.map(({ chapter }) => (
+                <ChapterCard
+                  key={chapter.id}
+                  chapter={chapter}
+                  expanded={!!expanded[chapter.id]}
+                  onToggle={() =>
+                    setExpanded((prev) => ({ ...prev, [chapter.id]: !prev[chapter.id] }))
+                  }
+                  onOpenConcept={(c) => setOpenConcept(c)}
+                  onQuickRevise={quickRevise}
+                  onToggleRevisionFlag={toggleFlag}
+                />
+              ))}
+              {chapters.length === 0 ? (
+                <p className="py-12 text-center text-sm text-muted">
+                  No chapters match the current filters.
+                </p>
+              ) : null}
+            </div>
+          )}
         </>
       )}
 
@@ -222,4 +333,16 @@ export function CoverageDashboard({ initialTree }: { initialTree: SyllabusTree }
       ) : null}
     </div>
   );
+}
+
+function findConcept(
+  subjects: SyllabusTree["subjects"],
+  id?: string,
+): ConceptVM | null {
+  if (!id) return null;
+  for (const s of subjects)
+    for (const ch of s.chapters)
+      for (const c of ch.concepts)
+        if (c.id === id) return c;
+  return null;
 }

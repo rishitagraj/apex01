@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import "@xyflow/react/dist/style.css";
 
 export const dynamic = "force-dynamic";
 
