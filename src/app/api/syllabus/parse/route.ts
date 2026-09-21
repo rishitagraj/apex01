@@ -2,12 +2,12 @@ import { verifySession } from "@/lib/auth";
 import { GroqNotConfiguredError, generateRoadmap } from "@/lib/groq";
 import { extractPdfText, ScannedPdfError, UnsupportedPdfError } from "@/lib/parser";
 import {
-  R2_BUCKET,
+  B2_BUCKET,
   deleteObject,
   getObjectBuffer,
   newFileKey,
   presignUpload,
-} from "@/lib/r2";
+} from "@/lib/b2";
 import { DEFAULT_PARSE_OPTIONS, type ParseOptions } from "@/types/syllabus";
 
 export const runtime = "nodejs";
@@ -55,11 +55,11 @@ export async function POST(req: Request) {
       const uploadUrl = await presignUpload(fileKey, contentType, fileSize);
       return Response.json({ ok: true, uploadUrl, fileKey });
     } catch (err) {
-      const code = (err as { code?: string }).code ?? "R2_ERROR";
+      const code = (err as { code?: string }).code ?? "B2_ERROR";
       if (code === "NOT_CONFIGURED") {
         return Response.json(
           {
-            error: "Cloudflare R2 is not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.",
+            error: "Backblaze B2 is not configured. Set B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET.",
             code,
           },
           { status: 503 },
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
 
   return Response.json(
     {
-      error: `Unknown action: ${action}. ${R2_BUCKET} requires a CORS config allowing PUT to the syllabus-pdfs/ prefix.`,
+      error: `Unknown action: ${action}. ${B2_BUCKET} requires a bucket lifecycle rule + CORS config allowing PUT to the syllabus-pdfs/ prefix.`,
     },
     { status: 400 },
   );

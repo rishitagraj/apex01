@@ -6,7 +6,7 @@ import type { ParseOptions, RoadmapDraft } from "@/types/syllabus";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-// Import parity check: missing GROQ/R2 is fine here — a roadmap arrived at
+// Import parity check: missing GROQ/B2 is fine here — a roadmap arrived at
 // this point after a successful (previewed) parse.
 export async function POST(req: Request) {
   const userId = await verifySession();

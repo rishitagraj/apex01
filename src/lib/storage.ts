@@ -6,8 +6,8 @@ export { formatBytes } from "@/utils/bytes";
 const FREE_PLAN_QUOTA = 2 * 1024 * 1024 * 1024; // 2 GB
 
 /**
- * Per-user storage usage over the `apex-storage` namespace. Files are tracked
- * by their R2 keys via concept resources + retained import PDFs.
+ * Per-user storage usage over the `apex-storage` bucket. Files are tracked
+ * by their B2 keys via concept resources + retained import PDFs.
  */
 export async function getStorageUsage(userId: string): Promise<StorageUsage> {
   try {

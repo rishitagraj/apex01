@@ -7,24 +7,25 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-export const R2_BUCKET = process.env.R2_BUCKET ?? "apex-storage";
+export const B2_BUCKET = process.env.B2_BUCKET ?? "apex-storage";
+const B2_REGION = process.env.B2_REGION ?? "us-west-004";
 
-class R2UnconfiguredError extends Error {
+class B2UnconfiguredError extends Error {
   code = "NOT_CONFIGURED" as const;
   constructor() {
-    super("R2 credentials are not configured");
+    super("Backblaze B2 credentials are not configured");
   }
 }
 
+/** B2's S3-compatible API endpoint (no path prefix needed for S3 dialect). */
 function client(): S3Client {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  if (!accountId || !accessKeyId || !secretAccessKey) throw new R2UnconfiguredError();
+  const applicationKeyId = process.env.B2_APPLICATION_KEY_ID;
+  const applicationKey = process.env.B2_APPLICATION_KEY;
+  if (!applicationKeyId || !applicationKey) throw new B2UnconfiguredError();
   return new S3Client({
-    region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey },
+    region: B2_REGION,
+    endpoint: `https://s3.${B2_REGION}.backblazeb2.com`,
+    credentials: { accessKeyId: applicationKeyId, secretAccessKey: applicationKey },
   });
 }
 
@@ -46,7 +47,7 @@ export async function presignUpload(
   return getSignedUrl(
     s3,
     new PutObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: B2_BUCKET,
       Key: key,
       ContentType: contentType,
     }),
@@ -58,7 +59,7 @@ export async function presignUpload(
 export async function getObjectBuffer(key: string): Promise<Buffer> {
   const s3 = client();
   const res = await s3.send(
-    new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }),
+    new GetObjectCommand({ Bucket: B2_BUCKET, Key: key }),
   );
   const body = res.Body;
   if (!body) throw new Error("Empty object");
@@ -71,5 +72,5 @@ export async function getObjectBuffer(key: string): Promise<Buffer> {
 
 export async function deleteObject(key: string): Promise<void> {
   const s3 = client();
-  await s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+  await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: key }));
 }
