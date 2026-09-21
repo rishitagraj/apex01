@@ -11,6 +11,7 @@ import {
   Trophy,
   User,
   LogOut,
+  GraduationCap,
 } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -21,6 +22,11 @@ const links = [
   { href: "/timetable", label: "Timetable", icon: CalendarClock },
   { href: "/pomodoro", label: "Pomodoro", icon: Timer },
   { href: "/rooms", label: "Focus Rooms", icon: Video },
+  {
+    href: "/syllabus",
+    label: "Syllabus Coverage",
+    icon: GraduationCap,
+  },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/profile", label: "Profile", icon: User },
 ];

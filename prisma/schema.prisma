@@ -17,12 +17,22 @@ model User {
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  todos              Todo[]
-  assessments        Assessment[]
-  hostedMeetings     Meeting[]       @relation("HostedMeetings")
-  meetingMemberships MeetingMember[]
-  studyDays          StudyDay[]
-  timetables         TimetableDay[]
+  todos               Todo[]
+  assessments         Assessment[]
+  hostedMeetings      Meeting[]             @relation("HostedMeetings")
+  meetingMemberships  MeetingMember[]
+  studyDays           StudyDay[]
+  timetables          TimetableDay[]
+  subjects            Subject[]
+  conceptProgress     UserConceptProgress[]
+  conceptChecklists   ConceptChecklist[]
+  conceptResources    ConceptResource[]
+  conceptRevisions    ConceptRevision[]
+  conceptDependencies ConceptDependency[]
+  conceptNotes        ConceptNote[]
+  conceptMistakes     ConceptMistake[]
+  revisionSchedules   RevisionSchedule[]
+  syllabusImports     SyllabusImport[]
 }
 
 model Todo {
@@ -81,7 +91,7 @@ model Meeting {
   hostId    String
   createdAt DateTime @default(now())
 
-  host        User             @relation("HostedMeetings", fields: [hostId], references: [id], onDelete: Cascade)
+  host        User            @relation("HostedMeetings", fields: [hostId], references: [id], onDelete: Cascade)
   memberships MeetingMember[]
 }
 
@@ -111,13 +121,13 @@ model StudyDay {
 }
 
 model TimetableDay {
-  id        String          @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
   name      String
-  sortOrder Int             @default(0)
-  createdAt DateTime        @default(now())
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
 
-  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   slots TimetableSlot[]
 
   @@index([userId, sortOrder])
@@ -136,4 +146,251 @@ model TimetableSlot {
   day TimetableDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
 
   @@index([dayId, startAt])
+}
+
+enum SyllabusStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  NEEDS_REVISION
+  WEAK
+  MASTERED
+}
+
+enum ChecklistTask {
+  READ_THEORY
+  WATCH_LECTURE
+  WRITE_NOTES
+  SOLVE_EXAMPLES
+  NCERT_EXERCISE
+  DPP
+  PYQ
+  REVISION_1
+  REVISION_2
+  REVISION_3
+  REVISION_4
+}
+
+enum ResourceKind {
+  PDF
+  IMAGE
+  MARKDOWN
+  FORMULA
+  DPP
+  PYQ
+  LINK
+  YOUTUBE
+}
+
+enum ImportStatus {
+  PENDING
+  PARSING
+  COMPLETED
+  FAILED
+}
+
+enum RevisionKind {
+  REVISION_1
+  REVISION_2
+  REVISION_3
+  REVISION_4
+  MANUAL
+}
+
+model Subject {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  classLevel String?
+  examTags   String[] @default([])
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapters Chapter[]
+
+  @@index([userId])
+}
+
+model Chapter {
+  id             String   @id @default(cuid())
+  subjectId      String
+  name           String
+  description    String?
+  order          Int      @default(0)
+  difficulty     String?
+  estimatedHours Float?
+  createdAt      DateTime @default(now())
+
+  subject  Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  concepts Concept[]
+
+  @@index([subjectId])
+}
+
+model Concept {
+  id                 String   @id @default(cuid())
+  chapterId          String
+  name               String
+  description        String?
+  difficulty         String   @default("Medium")
+  order              Int      @default(0)
+  studyMinutes       Int      @default(0)
+  tags               String[] @default([])
+  learningObjectives String[] @default([])
+  estimatedHours     Float?
+  createdAt          DateTime @default(now())
+
+  chapter           Chapter              @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  progress          UserConceptProgress?
+  checklists        ConceptChecklist[]
+  resources         ConceptResource[]
+  revisions         ConceptRevision[]
+  notes             ConceptNote?
+  mistakes          ConceptMistake[]
+  revisionSchedules RevisionSchedule[]
+  dependencies      ConceptDependency[]  @relation("DependentConcept")
+  prerequisiteOf    ConceptDependency[]  @relation("PrerequisiteConcept")
+
+  @@index([chapterId])
+}
+
+model UserConceptProgress {
+  id            String         @id @default(cuid())
+  conceptId     String         @unique
+  userId        String
+  status        SyllabusStatus @default(NOT_STARTED)
+  confidence    Int            @default(0)
+  coverage      Int            @default(0)
+  studyMinutes  Int            @default(0)
+  needsRevision Boolean        @default(false)
+  lastStudiedAt DateTime?
+  lastRevisedAt DateTime?
+  updatedAt     DateTime       @updatedAt
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conceptId, userId])
+  @@index([userId, status])
+}
+
+model ConceptChecklist {
+  id        String        @id @default(cuid())
+  conceptId String
+  userId    String
+  task      ChecklistTask
+  done      Boolean       @default(false)
+  order     Int           @default(0)
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([conceptId, userId, task])
+  @@index([userId])
+}
+
+model ConceptResource {
+  id        String       @id @default(cuid())
+  conceptId String
+  userId    String
+  kind      ResourceKind
+  title     String
+  url       String?
+  key       String?
+  size      Int          @default(0)
+  favourite Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([userId, favourite])
+}
+
+model ConceptRevision {
+  id        String       @id @default(cuid())
+  conceptId String
+  userId    String
+  kind      RevisionKind @default(MANUAL)
+  note      String?
+  revisedAt DateTime     @default(now())
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([userId, revisedAt])
+}
+
+model ConceptDependency {
+  id             String @id @default(cuid())
+  conceptId      String
+  prerequisiteId String
+  userId         String
+
+  concept      Concept @relation("DependentConcept", fields: [conceptId], references: [id], onDelete: Cascade)
+  prerequisite Concept @relation("PrerequisiteConcept", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+  user         User    @relation(fields: [userId], references: [id])
+
+  @@unique([conceptId, prerequisiteId])
+  @@index([userId])
+}
+
+model ConceptNote {
+  id        String   @id @default(cuid())
+  conceptId String   @unique
+  userId    String
+  body      String   @default("")
+  updatedAt DateTime @updatedAt
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([conceptId, userId])
+}
+
+model ConceptMistake {
+  id        String   @id @default(cuid())
+  conceptId String
+  userId    String
+  text      String
+  source    String?
+  createdAt DateTime @default(now())
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model RevisionSchedule {
+  id        String       @id @default(cuid())
+  conceptId String
+  userId    String
+  date      DateTime     @db.Date
+  kind      RevisionKind
+  done      Boolean      @default(false)
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([conceptId, userId, date])
+  @@index([userId, date])
+}
+
+model SyllabusImport {
+  id           String       @id @default(cuid())
+  userId       String
+  course       String
+  pdfName      String?
+  status       ImportStatus @default(PENDING)
+  instructions String?
+  warnings     Json?
+  summary      Json?
+  createdAt    DateTime     @default(now())
+  completedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
