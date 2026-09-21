@@ -10,15 +10,9 @@ import {
 
 const PROMPT_KEY = "apex-syllabus-prompt";
 
-export interface ImportFile {
-  name: string;
-  size: number;
-  type: string;
-}
-
 export function useImportWizard() {
   const [step, setStep] = useState(0);
-  const [file, setFile] = useState<ImportFile | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState<string | null>(null);
   const [prompt, setPromptState] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -48,7 +42,7 @@ export function useImportWizard() {
   }, []);
 
   const chooseFile = useCallback((next: File) => {
-    setFile({ name: next.name, size: next.size, type: next.type || "application/pdf" });
+    setFile(next);
     setError(null);
     setNeedsOcr(false);
     setRoadmap(null);
@@ -64,13 +58,14 @@ export function useImportWizard() {
     try {
       let key = fileKey;
       if (!key) {
+        const contentType = file.type || "application/pdf";
         const presignRes = await fetch("/api/syllabus/parse", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "presign",
             fileName: file.name,
-            contentType: file.type,
+            contentType,
             fileSize: file.size,
           }),
         });
@@ -79,7 +74,7 @@ export function useImportWizard() {
         key = presign.fileKey as string;
         const upload = await fetch(presign.uploadUrl as string, {
           method: "PUT",
-          headers: { "Content-Type": file.type },
+          headers: { "Content-Type": contentType },
           body: new Uint8Array(await readFileArrayBuffer(file)),
         });
         if (!upload.ok) throw new Error(`Upload failed (${upload.status})`);
@@ -174,7 +169,6 @@ export function useImportWizard() {
   };
 }
 
-async function readFileArrayBuffer(file: ImportFile): Promise<ArrayBuffer> {
-  const src = file as unknown as Blob;
-  return src.arrayBuffer();
+async function readFileArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return file.arrayBuffer();
 }
