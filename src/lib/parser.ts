@@ -1,4 +1,5 @@
 import "server-only";
+import "@/lib/pdf-polyfill";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { PDFParse } from "pdf-parse";

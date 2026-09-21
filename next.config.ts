@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     "@prisma/adapter-pg",
     "pdf-parse",
     "pdfjs-dist",
+    "@napi-rs/canvas",
   ],
   async redirects() {
     return [{ source: "/tasks", destination: "/todos", permanent: true }];

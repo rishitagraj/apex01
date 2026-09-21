@@ -46,3 +46,5 @@ server.log
 next-env.d.ts
 
 desktop.ini
+.vercel
+.env*
