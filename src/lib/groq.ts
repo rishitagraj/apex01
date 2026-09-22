@@ -21,7 +21,14 @@ Ignore headers, page numbers, indexes, logos and decorative content.
 Detect: course, subjects, chapters, concepts, subconcepts, learning objectives, prerequisites, difficulty (Easy | Medium | Hard), estimated study hours, revision points, tags (NCERT, CBSE, Allen, JEE Main, JEE Advanced, NEET, Olympiad, Visual, Formula, Proof, Application).
 Return valid JSON only — never markdown, never prose, no code fences.`;
 
-function truncate(text: string, max = 110000): string {
+/**
+ * Free-tier Groq caps tokens-per-minute (TPM) per model. `gpt-oss-120b` is only
+ * 8k TPM — a single long-syllabus request blows right past it, so we use a free
+ * model with a much larger per-minute budget (`llama-4-scout` = 30k TPM) and we
+ * limit the text sent so a worst-case request (input + output) stays well under
+ * the budget.
+ */
+function truncate(text: string, max = 64000): string {
   if (text.length <= max) return text;
   const head = Math.floor(max * 0.8);
   const tail = max - head;
@@ -90,7 +97,7 @@ export async function generateRoadmap(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "openai/gpt-oss-120b",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       response_format: { type: "json_object" },
       temperature: 0.2,
       max_tokens: 8192,
