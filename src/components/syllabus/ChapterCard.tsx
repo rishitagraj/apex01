@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, Layers, RefreshCw } from "lucide-react";
+import { ChevronDown, Layers, RefreshCw, Trash2, X } from "lucide-react";
 import type { ConceptVM } from "@/types/syllabus";
 import { ConceptCard } from "@/components/syllabus/ConceptCard";
 
@@ -29,6 +30,7 @@ export function ChapterCard({
   onOpenConcept,
   onQuickRevise,
   onToggleRevisionFlag,
+  onDelete,
 }: {
   chapter: {
     id: string;
@@ -46,21 +48,41 @@ export function ChapterCard({
   onOpenConcept: (concept: ConceptVM) => void;
   onQuickRevise: (concept: ConceptVM) => void;
   onToggleRevisionFlag: (concept: ConceptVM) => void;
+  onDelete?: () => void;
 }) {
   const reduced = useReducedMotion();
   const spread = difficultySpread(chapter.concepts);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+  }, []);
+
+  const requestDelete = () => {
+    if (!confirmDel) {
+      setConfirmDel(true);
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmDel(false), 3500);
+      return;
+    }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    setConfirmDel(false);
+    onDelete?.();
+  };
 
   return (
     <motion.div
       layout={!reduced}
       className="card overflow-hidden rounded-3xl">
-      <button
-        onClick={onToggle}
-        aria-expanded={expanded}
-        aria-controls={`chapter-${chapter.id}`}
-        className="w-full px-4 py-4 text-left transition hover:bg-white/[0.02] sm:px-5"
-      >
-        <div className="flex items-center gap-3">
+      <div className="flex items-stretch">
+        <button
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls={`chapter-${chapter.id}`}
+          className="min-w-0 flex-1 px-4 py-4 text-left transition hover:bg-white/[0.02] sm:px-5"
+        >
+          <div className="flex items-center gap-3">
           <span
             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-apex-gradient text-white shadow-lg shadow-apex/20 transition-transform ${
               expanded ? "rotate-180" : ""
@@ -111,7 +133,25 @@ export function ChapterCard({
             </div>
           </div>
         </div>
-      </button>
+        </button>
+
+        {onDelete ? (
+          <div className="flex shrink-0 items-center pr-3 sm:pr-4">
+            <button
+              onClick={requestDelete}
+              aria-label={`Delete topic ${chapter.name}`}
+              title={confirmDel ? "Click again to confirm" : "Delete topic"}
+              className={`grid h-9 w-9 place-items-center rounded-xl border text-muted transition ${
+                confirmDel
+                  ? "border-rose-500/60 bg-rose-500/15 text-rose-300"
+                  : "border-line bg-surface hover:border-rose-500/40 hover:text-rose-300"
+              }`}
+            >
+              {confirmDel ? <X size={15} /> : <Trash2 size={15} />}
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       <AnimatePresence initial={false}>
         {expanded ? (

@@ -170,6 +170,54 @@ export function CoverageDashboard({
     [save],
   );
 
+  const postDelete = useCallback(
+    async (scope: "chapter" | "subject", id: string) => {
+      const res = await fetch("/api/syllabus/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope, id }),
+      });
+      return res.ok;
+    },
+    [],
+  );
+
+  const deleteSubject = useCallback(
+    (id: string) => {
+      void postDelete("subject", id).then((ok) => {
+        if (ok) {
+          setSubjectExpanded((prev) => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+          void refresh();
+        }
+      });
+    },
+    [postDelete, refresh],
+  );
+
+  const deleteChapter = useCallback(
+    (id: string) => {
+      void postDelete("chapter", id).then((ok) => {
+        if (ok) {
+          setExpanded((prev) => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+          void refresh();
+        }
+      });
+    },
+    [postDelete, refresh],
+  );
+
+  const addTopicDone = useCallback(() => {
+    void refresh();
+  }, [refresh]);
+
   const totalConcepts = tree.stats.totalConcepts;
 
   return (
@@ -352,6 +400,8 @@ export function CoverageDashboard({
                       [subject.id]: prev[subject.id] === false,
                     }))
                   }
+                  onAddTopic={addTopicDone}
+                  onDeleteSubject={() => deleteSubject(subject.id)}
                 >
                   {chs.map((chapter) => (
                     <ChapterCard
@@ -364,6 +414,7 @@ export function CoverageDashboard({
                       onOpenConcept={(c) => setOpenConcept(c)}
                       onQuickRevise={quickRevise}
                       onToggleRevisionFlag={toggleFlag}
+                      onDelete={() => deleteChapter(chapter.id)}
                     />
                   ))}
                 </SubjectSection>
