@@ -27,7 +27,9 @@ export async function recomputeAndPersist(conceptId: string, userId: string) {
   ]);
 
   const done = defaultChecklistState(
-    Object.fromEntries(checklists.map((c) => [c.task, c.done])) as Record<string, boolean>,
+    Object.fromEntries(
+      checklists.filter((c) => !c.hidden).map((c) => [c.task, c.done]),
+    ) as Record<string, boolean>,
   );
   const confidence = progressRow?.confidence ?? 0;
   const needsRevision = progressRow?.needsRevision ?? false;
@@ -164,6 +166,7 @@ export async function persistRoadmap(
                 conceptId: createdConcept.id,
                 userId,
                 task: t.task,
+                label: t.label,
                 order: CHECKLIST_ORDER.indexOf(t),
               })),
             });

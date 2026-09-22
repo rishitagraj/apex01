@@ -5,6 +5,7 @@ import {
   recomputeAndPersist,
 } from "@/lib/syllabus-actions";
 import type { ChecklistTask } from "@/types/syllabus";
+import { CHECKLIST_ORDER } from "@/types/syllabus";
 
 export const runtime = "nodejs";
 
@@ -42,13 +43,19 @@ export async function POST(req: Request) {
 
         await db.conceptChecklist.upsert({
           where: { conceptId_userId_task: { conceptId, userId, task } },
-          create: { conceptId, userId, task, done },
-          update: { done },
+          create: {
+            conceptId,
+            userId,
+            task,
+            done,
+            label: CHECKLIST_ORDER.find((c) => c.task === task)?.label,
+          },
+          update: { done, hidden: false },
         });
 
         const progress = await recomputeAndPersist(conceptId, userId);
         const updated = await db.conceptChecklist.findMany({
-          where: { conceptId, userId },
+          where: { conceptId, userId, hidden: false },
           select: { task: true, done: true },
         });
         return Response.json({
@@ -56,6 +63,47 @@ export async function POST(req: Request) {
           coverage: progress.coverage,
           status: progress.status,
           checklist: updated,
+        });
+      }
+
+      case "updateChecklist": {
+        const task = body.task as ChecklistTask | undefined;
+        const label = String(body.label ?? "").trim();
+        if (!task) return Response.json({ error: "task required" }, { status: 400 });
+        if (!label) return Response.json({ error: "label required" }, { status: 400 });
+        const item = await db.conceptChecklist.upsert({
+          where: { conceptId_userId_task: { conceptId, userId, task } },
+          create: {
+            conceptId,
+            userId,
+            task,
+            label,
+            hidden: false,
+            order: CHECKLIST_ORDER.findIndex((c) => c.task === task),
+          },
+          update: { label, hidden: false },
+        });
+        const progress = await recomputeAndPersist(conceptId, userId);
+        return Response.json({
+          ok: true,
+          item,
+          coverage: progress.coverage,
+          status: progress.status,
+        });
+      }
+
+      case "removeChecklist": {
+        const task = body.task as ChecklistTask | undefined;
+        if (!task) return Response.json({ error: "task required" }, { status: 400 });
+        await db.conceptChecklist.updateMany({
+          where: { conceptId, userId, task },
+          data: { hidden: true },
+        });
+        const progress = await recomputeAndPersist(conceptId, userId);
+        return Response.json({
+          ok: true,
+          coverage: progress.coverage,
+          status: progress.status,
         });
       }
 

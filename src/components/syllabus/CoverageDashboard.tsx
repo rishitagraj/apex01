@@ -222,7 +222,12 @@ export function CoverageDashboard({
       </header>
 
       {showManual ? (
-        <ManualSyllabusForm onDone={() => setShowManual(false)} />
+        <ManualSyllabusForm
+          onDone={() => {
+            setShowManual(false);
+            void refresh();
+          }}
+        />
       ) : null}
 
       <StatsCards

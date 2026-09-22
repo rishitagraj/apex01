@@ -109,8 +109,6 @@ export function ConceptDrawer({
   });
 
   const toggleTask = (task: ChecklistTask, done: boolean) => {
-    const item = items.find((i) => i.task === task);
-    if (!item) return;
     setItems((prev) =>
       prev.map((i) => (i.task === task ? { ...i, done } : i)),
     );
@@ -126,6 +124,13 @@ export function ConceptDrawer({
       done,
     }).then(applyOutcome);
   };
+
+  const toggleItem = (item: ChecklistItemVM, done: boolean) => {
+    if (item.task) toggleTask(item.task, done);
+    else toggleCustom(item, done);
+  };
+
+  const itemKey = (item: ChecklistItemVM) => item.task ?? item.id;
 
   const addItem = async () => {
     const label = newLabel.trim();
@@ -144,26 +149,40 @@ export function ConceptDrawer({
   };
 
   const startEdit = (item: ChecklistItemVM) => {
-    setEditingId(item.id);
+    setEditingId(itemKey(item));
     setEditLabel(item.label);
   };
 
   const saveEdit = async () => {
     const label = editLabel.trim();
     if (!editingId || !label || busyItem) return;
+    const target = items.find((i) => itemKey(i) === editingId);
+    if (!target) return;
+    const isBuiltIn = !!target.task;
     setBusyItem(true);
     try {
-      const res = await save("updateCustomChecklist", concept.id, {
-        itemId: editingId,
-        label,
-      });
+      const res = isBuiltIn
+        ? await save("updateChecklist", concept.id, { task: target.task, label })
+        : await save("updateCustomChecklist", concept.id, { itemId: target.id, label });
       if (res.ok && res.item) {
         setItems((prev) =>
-          prev.map((i) =>
-            i.id === editingId
-              ? toVM(res.item as { id: string; label: string; weight: number; done: boolean })
-              : i,
-          ),
+          prev.map((i) => {
+            if (itemKey(i) !== editingId) return i;
+            if (isBuiltIn) {
+              const updated = res.item as {
+                id: string;
+                label: string;
+                done: boolean;
+              };
+              return {
+                ...i,
+                id: updated.id,
+                label: updated.label,
+                done: updated.done,
+              };
+            }
+            return toVM(res.item as { id: string; label: string; weight: number; done: boolean });
+          }),
         );
       }
       applyOutcome(res);
@@ -175,11 +194,11 @@ export function ConceptDrawer({
   };
 
   const removeItem = async (item: ChecklistItemVM) => {
-    const index = items.findIndex((i) => i.id === item.id);
-    setItems((prev) => prev.filter((i) => i.id !== item.id));
-    const res = await save("removeCustomChecklist", concept.id, {
-      itemId: item.id,
-    });
+    const index = items.findIndex((i) => itemKey(i) === itemKey(item));
+    setItems((prev) => prev.filter((i) => itemKey(i) !== itemKey(item)));
+    const res = item.task
+      ? await save("removeChecklist", concept.id, { task: item.task })
+      : await save("removeCustomChecklist", concept.id, { itemId: item.id });
     if (!res.ok) {
       setItems((prev) => {
         const next = [...prev];
@@ -319,31 +338,11 @@ export function ConceptDrawer({
               Learning checklist
             </h3>
             <ul className="space-y-1">
-              {items.map((item) =>
-                item.task ? (
-                  <li key={item.task}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-black/20 px-3 py-2 text-sm transition hover:border-apex/30">
-                      <input
-                        type="checkbox"
-                        checked={item.done}
-                        onChange={(e) =>
-                          toggleTask(item.task as ChecklistTask, e.target.checked)
-                        }
-                        className="h-4 w-4 accent-[#ff7a1a]"
-                      />
-                      <span
-                        className={`flex-1 ${item.done ? "line-through text-muted" : ""}`}
-                      >
-                        {item.label}
-                      </span>
-                      <span className="text-[10px] font-medium tabular-nums text-muted">
-                        +{item.weight} pts
-                      </span>
-                    </label>
-                  </li>
-                ) : (
-                  <li key={item.id} className="group">
-                    {editingId === item.id ? (
+              {items.map((item) => {
+                const editing = editingId === itemKey(item);
+                return (
+                  <li key={itemKey(item)} className="group">
+                    {editing ? (
                       <div className="flex items-center gap-2 rounded-xl border border-apex/40 bg-black/20 px-3 py-2">
                         <input
                           value={editLabel}
@@ -378,41 +377,42 @@ export function ConceptDrawer({
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 rounded-xl border border-dashed border-line bg-black/20 px-3 py-2 text-sm transition hover:border-apex/30">
+                      <div className="flex items-center gap-2 rounded-xl border border-line bg-black/20 px-3 py-2 text-sm transition hover:border-apex/30">
                         <input
                           type="checkbox"
                           checked={item.done}
-                          onChange={(e) => toggleCustom(item, e.target.checked)}
-                          className="h-4 w-4 accent-[#ff7a1a]"
+                          onChange={(e) => toggleItem(item, e.target.checked)}
+                          className="h-4 w-4 shrink-0 accent-[#ff7a1a]"
                           aria-label={`Mark "${item.label}" done`}
                         />
                         <span
                           className={`min-w-0 flex-1 ${item.done ? "line-through text-muted" : ""}`}
+                          title={item.label}
                         >
                           {item.label}
                         </span>
-                        <span className="text-[10px] font-medium tabular-nums text-muted">
+                        <span className="shrink-0 text-[10px] font-medium tabular-nums text-muted">
                           +{item.weight} pts
                         </span>
                         <button
                           onClick={() => startEdit(item)}
                           aria-label={`Edit "${item.label}"`}
-                          className="rounded-lg p-1.5 text-muted opacity-0 transition hover:bg-surface hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                          className="rounded-lg p-1.5 text-muted transition hover:bg-surface hover:text-foreground"
                         >
                           <Pencil size={13} />
                         </button>
                         <button
                           onClick={() => void removeItem(item)}
                           aria-label={`Remove "${item.label}"`}
-                          className="rounded-lg p-1.5 text-muted opacity-0 transition hover:bg-surface hover:text-rose-300 focus:opacity-100 group-hover:opacity-100"
+                          className="rounded-lg p-1.5 text-muted transition hover:bg-surface hover:text-rose-300"
                         >
                           <Trash2 size={13} />
                         </button>
                       </div>
                     )}
                   </li>
-                ),
-              )}
+                );
+              })}
             </ul>
             <form
               className="mt-2 flex gap-2"

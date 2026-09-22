@@ -294,7 +294,9 @@ model ConceptChecklist {
   conceptId String
   userId    String
   task      ChecklistTask
+  label     String?
   done      Boolean       @default(false)
+  hidden    Boolean       @default(false)
   order     Int           @default(0)
 
   concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
