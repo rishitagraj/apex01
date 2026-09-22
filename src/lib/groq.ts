@@ -22,13 +22,13 @@ Detect: course, subjects, chapters, concepts, subconcepts, learning objectives, 
 Return valid JSON only — never markdown, never prose, no code fences.`;
 
 /**
- * Free-tier Groq caps tokens-per-minute (TPM) per model. `gpt-oss-120b` is only
- * 8k TPM — a single long-syllabus request blows right past it, so we use a free
- * model with a much larger per-minute budget (`llama-4-scout` = 30k TPM) and we
- * limit the text sent so a worst-case request (input + output) stays well under
- * the budget.
+ * Groq's free tier caps tokens-per-minute (TPM) at 8,000 for the models this
+ * org can actually call (`openai/gpt-oss-120b` / `gpt-oss-20b`). A single
+ * request must fit input + output inside that 8k window, so we truncate the
+ * syllabus text to a ~4k-token budget (~16k chars) and cap output at 3k tokens.
+ * Head + tail are kept so chapter lists near the end of the document survive.
  */
-function truncate(text: string, max = 64000): string {
+function truncate(text: string, max = 16000): string {
   if (text.length <= max) return text;
   const head = Math.floor(max * 0.8);
   const tail = max - head;
@@ -97,10 +97,10 @@ export async function generateRoadmap(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: "openai/gpt-oss-20b",
       response_format: { type: "json_object" },
       temperature: 0.2,
-      max_tokens: 8192,
+      max_tokens: 3072,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
