@@ -97,7 +97,7 @@ export function ImportWizard({
       {wizard.error ? (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
           <p className="text-sm text-rose-300">{wizard.error}</p>
-          {wizard.step === 2 && wizard.fileKey ? (
+          {wizard.fileKey ? (
             <button className="btn" onClick={() => wizard.retry()}>
               <RotateCcw size={14} className="mr-1.5 inline" /> Retry without re-upload
             </button>

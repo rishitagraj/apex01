@@ -43,6 +43,7 @@ export function useImportWizard() {
 
   const chooseFile = useCallback((next: File) => {
     setFile(next);
+    setFileKey(null);
     setError(null);
     setNeedsOcr(false);
     setRoadmap(null);
@@ -100,6 +101,7 @@ export function useImportWizard() {
       setRoadmap(parsed.roadmap as RoadmapDraft);
       setTextPreview(String(parsed.textPreview ?? ""));
       setProgressText("");
+      setFileKey(null);
       setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");

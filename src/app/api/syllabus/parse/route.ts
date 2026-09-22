@@ -80,7 +80,6 @@ export async function POST(req: Request) {
       const parsed = await extractPdfText(buffer);
 
       if (parsed.needsOcr) {
-        await cleanup(fileKey, options);
         return Response.json(
           {
             error:
@@ -93,6 +92,7 @@ export async function POST(req: Request) {
       }
 
       const roadmap = await generateRoadmap(parsed.text, instructions, options);
+      // Success: drop the temp object unless the user asked to keep the PDF.
       await cleanup(fileKey, options);
 
       return Response.json({
@@ -103,7 +103,8 @@ export async function POST(req: Request) {
         textChars: parsed.text.length,
       });
     } catch (err) {
-      await cleanup(fileKey, optionsForCleanup(body) ?? undefined);
+      // Keep the temp object on failure so "retry without re-upload" works;
+      // stale keys are aged out by the bucket lifecycle rule.
       if (err instanceof GroqNotConfiguredError) {
         return Response.json(
           {
@@ -119,10 +120,14 @@ export async function POST(req: Request) {
       if (err instanceof ScannedPdfError) {
         return Response.json({ error: err.message, code: "NEEDS_OCR" }, { status: 422 });
       }
-      return Response.json(
-        { error: String((err as Error)?.message ?? err), code: "PARSE_ERROR" },
-        { status: 500 },
-      );
+      const isNoSuchKey =
+        err &&
+        (err as { name?: string; code?: string }).name === "NoSuchKey" ||
+        (err as { code?: string }).code === "NoSuchKey";
+      const detail = isNoSuchKey
+        ? "Your upload was cleaned up before processing. Please upload the PDF again."
+        : String((err as Error)?.message ?? err);
+      return Response.json({ error: detail, code: "PARSE_ERROR" }, { status: 500 });
     }
   }
 
@@ -132,10 +137,6 @@ export async function POST(req: Request) {
     },
     { status: 400 },
   );
-}
-
-function optionsForCleanup(body: Record<string, unknown>): ParseOptions {
-  return readOptions(body.options ?? body);
 }
 
 async function cleanup(fileKey: string, options?: ParseOptions) {

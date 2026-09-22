@@ -44,24 +44,33 @@ export interface ParsedPdf {
 
 /**
  * Extracts plain text from a PDF buffer. Heuristically flags scanned PDFs
- * (minimal extractable text) so the pipeline can surface an OCR hint instead
- * of silently producing an empty syllabus. Chunks very large documents to the
- * first ~60 pages to keep parsing bounded.
+ * (essentially no extractable text) so the pipeline can surface an OCR hint
+ * instead of silently producing an empty syllabus. The threshold is deliberately
+ * low so short-but-typed documents are not mistaken for scans. Chunks very
+ * large documents to the first ~60 pages to keep parsing bounded.
  */
 export async function extractPdfText(buffer: Buffer): Promise<ParsedPdf> {
   wirePdfWorker();
   try {
     // `last` here is an inclusive end page for `getText()` page selection.
-    const parser = new PDFParse({ data: buffer });
-    try {
-      const result = await parser.getText({ first: 1, last: 60 });
-      const text = result.text ?? "";
-      const pages = result.pages?.length ?? 0;
-      const needsOcr = text.replace(/\s/g, "").length < 120;
-      return { text: text.slice(0, 200_000), pages, needsOcr };
-    } finally {
-      await parser.destroy();
+    // Retry once with a fresh parser when the first pass comes back nearly
+    // empty — cold-start worker races can transiently gut the text layer and
+    // would otherwise falsely flag a typed PDF as a scan.
+    let text = "";
+    let pages = 0;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const parser = new PDFParse({ data: buffer });
+      try {
+        const result = await parser.getText({ first: 1, last: 60 });
+        text = result.text ?? "";
+        pages = result.pages?.length ?? 0;
+        if (text.replace(/\s/g, "").length >= 40) break;
+      } finally {
+        await parser.destroy().catch(() => {});
+      }
     }
+    const needsOcr = text.replace(/\s/g, "").length < 40;
+    return { text: text.slice(0, 200_000), pages, needsOcr };
   } catch (err) {
     if (
       err &&
