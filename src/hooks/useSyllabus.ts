@@ -118,7 +118,9 @@ export function useSyllabus(initialTree: SyllabusTree) {
   );
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/syllabus/export?format=json");
+    const res = await fetch("/api/syllabus/export?format=json", {
+      cache: "no-store",
+    });
     if (res.ok) {
       const data = await res.json();
       setTree(data);

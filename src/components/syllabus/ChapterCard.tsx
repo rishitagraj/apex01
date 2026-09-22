@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, Layers, RefreshCw, Trash2, X } from "lucide-react";
+import { ChevronDown, Layers, RefreshCw, Trash2 } from "lucide-react";
 import type { ConceptVM } from "@/types/syllabus";
 import { ConceptCard } from "@/components/syllabus/ConceptCard";
 
@@ -52,23 +51,15 @@ export function ChapterCard({
 }) {
   const reduced = useReducedMotion();
   const spread = difficultySpread(chapter.concepts);
-  const [confirmDel, setConfirmDel] = useState(false);
-  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => {
-    if (confirmTimer.current) clearTimeout(confirmTimer.current);
-  }, []);
-
-  const requestDelete = () => {
-    if (!confirmDel) {
-      setConfirmDel(true);
-      if (confirmTimer.current) clearTimeout(confirmTimer.current);
-      confirmTimer.current = setTimeout(() => setConfirmDel(false), 3500);
-      return;
+  const handleDelete = () => {
+    if (
+      window.confirm(
+        `Delete topic "${chapter.name}"? This removes all its concepts and progress.`,
+      )
+    ) {
+      onDelete?.();
     }
-    if (confirmTimer.current) clearTimeout(confirmTimer.current);
-    setConfirmDel(false);
-    onDelete?.();
   };
 
   return (
@@ -77,6 +68,7 @@ export function ChapterCard({
       className="card overflow-hidden rounded-3xl">
       <div className="flex items-stretch">
         <button
+          type="button"
           onClick={onToggle}
           aria-expanded={expanded}
           aria-controls={`chapter-${chapter.id}`}
@@ -138,16 +130,13 @@ export function ChapterCard({
         {onDelete ? (
           <div className="flex shrink-0 items-center pr-3 sm:pr-4">
             <button
-              onClick={requestDelete}
+              type="button"
+              onClick={handleDelete}
               aria-label={`Delete topic ${chapter.name}`}
-              title={confirmDel ? "Click again to confirm" : "Delete topic"}
-              className={`grid h-9 w-9 place-items-center rounded-xl border text-muted transition ${
-                confirmDel
-                  ? "border-rose-500/60 bg-rose-500/15 text-rose-300"
-                  : "border-line bg-surface hover:border-rose-500/40 hover:text-rose-300"
-              }`}
+              title="Delete topic"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-surface text-muted transition hover:border-rose-500/40 hover:text-rose-300"
             >
-              {confirmDel ? <X size={15} /> : <Trash2 size={15} />}
+              <Trash2 size={15} />
             </button>
           </div>
         ) : null}

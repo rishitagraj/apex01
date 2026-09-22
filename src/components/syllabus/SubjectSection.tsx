@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { GraduationCap, Plus, Trash2, X, Check, Loader2 } from "lucide-react";
 import type { ChapterVM, SubjectVM } from "@/types/syllabus";
 
@@ -73,12 +73,6 @@ export function SubjectSection({
   const [topicText, setTopicText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDel, setConfirmDel] = useState(false);
-  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (confirmTimer.current) clearTimeout(confirmTimer.current);
-  }, []);
 
   const submitTopic = async () => {
     const { name, concepts } = parseTopicLine(topicText);
@@ -103,22 +97,21 @@ export function SubjectSection({
     }
   };
 
-  const requestDelete = () => {
-    if (!confirmDel) {
-      setConfirmDel(true);
-      if (confirmTimer.current) clearTimeout(confirmTimer.current);
-      confirmTimer.current = setTimeout(() => setConfirmDel(false), 3500);
-      return;
+  const handleDelete = () => {
+    if (
+      window.confirm(
+        `Delete subject "${subject.name}"? This removes all its topics, concepts and progress.`,
+      )
+    ) {
+      onDeleteSubject(subject.id);
     }
-    if (confirmTimer.current) clearTimeout(confirmTimer.current);
-    setConfirmDel(false);
-    onDeleteSubject(subject.id);
   };
 
   return (
     <section aria-label={`${subject.name} subject`} className="space-y-3">
       <div className="flex items-stretch gap-1.5">
         <button
+          type="button"
           onClick={onToggle}
           aria-expanded={expanded}
           aria-controls={`subject-${subject.id}`}
@@ -172,6 +165,7 @@ export function SubjectSection({
 
         <div className="flex shrink-0 flex-col justify-center gap-1.5">
           <button
+            type="button"
             onClick={() => {
               setAdding((v) => !v);
               setError(null);
@@ -184,16 +178,13 @@ export function SubjectSection({
             {adding ? <X size={15} /> : <Plus size={15} />}
           </button>
           <button
-            onClick={requestDelete}
+            type="button"
+            onClick={handleDelete}
             aria-label={`Delete subject ${subject.name}`}
-            title={confirmDel ? "Click again to confirm" : "Delete subject"}
-            className={`grid h-9 w-9 place-items-center rounded-xl border text-muted transition ${
-              confirmDel
-                ? "border-rose-500/60 bg-rose-500/15 text-rose-300"
-                : "border-line bg-surface hover:border-rose-500/40 hover:text-rose-300"
-            }`}
+            title="Delete subject"
+            className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-surface text-muted transition hover:border-rose-500/40 hover:text-rose-300"
           >
-            {confirmDel ? <Check size={15} /> : <Trash2 size={15} />}
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
@@ -217,6 +208,7 @@ export function SubjectSection({
               className="input flex-1"
             />
             <button
+              type="button"
               onClick={() => void submitTopic()}
               disabled={busy || !parseTopicLine(topicText).name}
               aria-label="Save topic"

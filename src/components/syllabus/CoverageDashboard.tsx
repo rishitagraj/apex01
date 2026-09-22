@@ -40,7 +40,7 @@ export function CoverageDashboard({
   initialSubjectId?: string;
   initialFocusId?: string;
 }) {
-  const { tree, busy, save, refresh } = useSyllabus(initialTree);
+  const { tree, busy, save, refresh, setTree } = useSyllabus(initialTree);
   const [filters, setFilters] = useState<SyllabusFilters>(() => ({
     ...DEFAULT_FILTERS,
     subject: initialSubjectId ?? DEFAULT_FILTERS.subject,
@@ -172,46 +172,73 @@ export function CoverageDashboard({
 
   const postDelete = useCallback(
     async (scope: "chapter" | "subject", id: string) => {
-      const res = await fetch("/api/syllabus/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scope, id }),
-      });
-      return res.ok;
+      try {
+        const res = await fetch("/api/syllabus/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scope, id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return {
+            ok: false,
+            error: (data?.error as string) || `Delete failed (${res.status})`,
+          } as const;
+        }
+        return { ok: true } as const;
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : "Network error",
+        } as const;
+      }
     },
     [],
   );
 
   const deleteSubject = useCallback(
-    (id: string) => {
-      void postDelete("subject", id).then((ok) => {
-        if (ok) {
-          setSubjectExpanded((prev) => {
-            const next = { ...prev };
-            delete next[id];
-            return next;
-          });
-          void refresh();
-        }
+    async (id: string) => {
+      const res = await postDelete("subject", id);
+      if (!res.ok) {
+        window.alert(res.error);
+        return;
+      }
+      setTree((t) => ({
+        ...t,
+        subjects: t.subjects.filter((s) => s.id !== id),
+      }));
+      setSubjectExpanded((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
       });
+      await refresh();
     },
-    [postDelete, refresh],
+    [postDelete, refresh, setTree],
   );
 
   const deleteChapter = useCallback(
-    (id: string) => {
-      void postDelete("chapter", id).then((ok) => {
-        if (ok) {
-          setExpanded((prev) => {
-            const next = { ...prev };
-            delete next[id];
-            return next;
-          });
-          void refresh();
-        }
+    async (id: string) => {
+      const res = await postDelete("chapter", id);
+      if (!res.ok) {
+        window.alert(res.error);
+        return;
+      }
+      setTree((t) => ({
+        ...t,
+        subjects: t.subjects.map((s) => ({
+          ...s,
+          chapters: s.chapters.filter((ch) => ch.id !== id),
+        })),
+      }));
+      setExpanded((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
       });
+      await refresh();
     },
-    [postDelete, refresh],
+    [postDelete, refresh, setTree],
   );
 
   const addTopicDone = useCallback(() => {
