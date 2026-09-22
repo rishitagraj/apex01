@@ -59,6 +59,92 @@ export async function POST(req: Request) {
         });
       }
 
+      case "addCustomChecklist": {
+        const label = String(body.label ?? "").trim();
+        if (!label) return Response.json({ error: "label required" }, { status: 400 });
+        const weight = Math.max(0, Math.min(50, Math.round(Number(body.weight) || 5)));
+        const last = await db.checklistCustomItem.findFirst({
+          where: { conceptId, userId },
+          orderBy: { order: "desc" },
+          select: { order: true },
+        });
+        const item = await db.checklistCustomItem.create({
+          data: { conceptId, userId, label, weight, order: (last?.order ?? -1) + 1 },
+        });
+        const progress = await recomputeAndPersist(conceptId, userId);
+        return Response.json({
+          ok: true,
+          item,
+          coverage: progress.coverage,
+          status: progress.status,
+        });
+      }
+
+      case "updateCustomChecklist": {
+        const itemId = String(body.itemId ?? "");
+        if (!itemId) return Response.json({ error: "itemId required" }, { status: 400 });
+        const owned = await db.checklistCustomItem.findFirst({
+          where: { id: itemId, conceptId, userId },
+          select: { id: true },
+        });
+        if (!owned) return Response.json({ error: "Step not found" }, { status: 404 });
+        const label = body.label !== undefined ? String(body.label).trim() : undefined;
+        const weight =
+          body.weight !== undefined
+            ? Math.max(0, Math.min(50, Math.round(Number(body.weight) || 0)))
+            : undefined;
+        const item = await db.checklistCustomItem.update({
+          where: { id: itemId },
+          data: { ...(label ? { label } : {}), ...(weight !== undefined ? { weight } : {}) },
+        });
+        const progress = await recomputeAndPersist(conceptId, userId);
+        return Response.json({
+          ok: true,
+          item,
+          coverage: progress.coverage,
+          status: progress.status,
+        });
+      }
+
+      case "removeCustomChecklist": {
+        const itemId = String(body.itemId ?? "");
+        if (!itemId) return Response.json({ error: "itemId required" }, { status: 400 });
+        const owned = await db.checklistCustomItem.findFirst({
+          where: { id: itemId, conceptId, userId },
+          select: { id: true },
+        });
+        if (!owned) return Response.json({ error: "Step not found" }, { status: 404 });
+        await db.checklistCustomItem.delete({ where: { id: itemId } });
+        const progress = await recomputeAndPersist(conceptId, userId);
+        return Response.json({
+          ok: true,
+          coverage: progress.coverage,
+          status: progress.status,
+        });
+      }
+
+      case "toggleCustomChecklist": {
+        const itemId = String(body.itemId ?? "");
+        const done = Boolean(body.done);
+        if (!itemId) return Response.json({ error: "itemId required" }, { status: 400 });
+        const owned = await db.checklistCustomItem.findFirst({
+          where: { id: itemId, conceptId, userId },
+          select: { id: true },
+        });
+        if (!owned) return Response.json({ error: "Step not found" }, { status: 404 });
+        const item = await db.checklistCustomItem.update({
+          where: { id: itemId },
+          data: { done },
+        });
+        const progress = await recomputeAndPersist(conceptId, userId);
+        return Response.json({
+          ok: true,
+          item,
+          coverage: progress.coverage,
+          status: progress.status,
+        });
+      }
+
       case "confidence": {
         const confidence = Math.max(0, Math.min(100, Number(body.confidence) || 0));
         const progress = await db.userConceptProgress.upsert({

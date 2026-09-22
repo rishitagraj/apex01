@@ -6,7 +6,7 @@ import {
   type RevisionKind,
   type RoadmapDraft,
 } from "@/types/syllabus";
-import { computeCoverage, defaultChecklistState, deriveStatus } from "@/utils/progress";
+import { computeCoverage, customChecklistPoints, defaultChecklistState, deriveStatus } from "@/utils/progress";
 
 /** RLS-equivalent ownership gate: the concept must hang under `userId`'s syllabus. */
 export async function findOwnedConcept(conceptId: string, userId: string) {
@@ -18,11 +18,12 @@ export async function findOwnedConcept(conceptId: string, userId: string) {
 
 /** Re-derives mastery + status from stored checklist/confidence and persists both. */
 export async function recomputeAndPersist(conceptId: string, userId: string) {
-  const [progressRow, checklists] = await Promise.all([
+  const [progressRow, checklists, customItems] = await Promise.all([
     db.userConceptProgress.findUnique({
       where: { conceptId_userId: { conceptId, userId } },
     }),
     db.conceptChecklist.findMany({ where: { conceptId, userId } }),
+    db.checklistCustomItem.findMany({ where: { conceptId, userId } }),
   ]);
 
   const done = defaultChecklistState(
@@ -30,7 +31,11 @@ export async function recomputeAndPersist(conceptId: string, userId: string) {
   );
   const confidence = progressRow?.confidence ?? 0;
   const needsRevision = progressRow?.needsRevision ?? false;
-  const coverage = computeCoverage(done, confidence);
+  const coverage = computeCoverage(
+    done,
+    confidence,
+    customChecklistPoints(customItems),
+  );
   const status = deriveStatus(coverage, confidence, needsRevision);
 
   await db.userConceptProgress.upsert({

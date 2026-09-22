@@ -88,7 +88,7 @@ export const EXAM_TAGS = [
 
 export interface ChecklistItemVM {
   id: string | null;
-  task: ChecklistTask;
+  task: ChecklistTask | null;
   label: string;
   weight: number;
   done: boolean;

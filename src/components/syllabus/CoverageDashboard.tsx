@@ -20,6 +20,7 @@ import {
 import { StatsCards } from "@/components/syllabus/StatsCards";
 import { FilterBar, DEFAULT_FILTERS, type SyllabusFilters } from "@/components/syllabus/FilterBar";
 import { ChapterCard } from "@/components/syllabus/ChapterCard";
+import { SubjectSection } from "@/components/syllabus/SubjectSection";
 import { ConceptDrawer } from "@/components/syllabus/ConceptDrawer";
 import { KnowledgeGraph } from "@/components/syllabus/KnowledgeGraph";
 import { RevisionHeatmap } from "@/components/syllabus/RevisionHeatmap";
@@ -45,6 +46,7 @@ export function CoverageDashboard({
     subject: initialSubjectId ?? DEFAULT_FILTERS.subject,
   }));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [subjectExpanded, setSubjectExpanded] = useState<Record<string, boolean>>({});
   const [openConcept, setOpenConcept] = useState<ConceptVM | null>(() =>
     findConcept(tree.subjects, initialFocusId),
   );
@@ -101,8 +103,7 @@ export function CoverageDashboard({
   const chapters = useMemo(() => {
     const queryActive = query.length > 0;
     const out: Array<{
-      subjectName: string;
-      subjectClass: string | null;
+      subject: (typeof subjects)[number];
       chapter: (typeof subjects)[number]["chapters"][number];
     }> = [];
     for (const s of subjects) {
@@ -119,7 +120,7 @@ export function CoverageDashboard({
         if (queryActive || filters.status !== "all" || filters.tag !== "all") {
           if (concepts.length === 0) continue;
         }
-        out.push({ subjectName: s.name, subjectClass: s.classLevel, chapter: { ...ch, concepts } });
+        out.push({ subject: s, chapter: { ...ch, concepts } });
       }
     }
 
@@ -136,6 +137,19 @@ export function CoverageDashboard({
     });
     return out;
   }, [subjects, filters, query]);
+
+  const sections = useMemo(() => {
+    const groups: {
+      subject: (typeof subjects)[number];
+      chapters: (typeof subjects)[number]["chapters"][number][];
+    }[] = [];
+    for (const { subject, chapter } of chapters) {
+      const existing = groups.find((g) => g.subject.id === subject.id);
+      if (existing) existing.chapters.push(chapter);
+      else groups.push({ subject, chapters: [chapter] });
+    }
+    return groups;
+  }, [chapters]);
 
   const resultCount = chapters.reduce((n, c) => n + c.chapter.concepts.length, 0);
 
@@ -318,21 +332,36 @@ export function CoverageDashboard({
           {view === "graph" ? (
             <KnowledgeGraph tree={tree} />
           ) : (
-            <div className="space-y-3">
-              {chapters.map(({ chapter }) => (
-                <ChapterCard
-                  key={chapter.id}
-                  chapter={chapter}
-                  expanded={!!expanded[chapter.id]}
+            <div className="space-y-4">
+              {sections.map(({ subject, chapters: chs }) => (
+                <SubjectSection
+                  key={subject.id}
+                  subject={subject}
+                  chapters={chs}
+                  expanded={subjectExpanded[subject.id] !== false}
                   onToggle={() =>
-                    setExpanded((prev) => ({ ...prev, [chapter.id]: !prev[chapter.id] }))
+                    setSubjectExpanded((prev) => ({
+                      ...prev,
+                      [subject.id]: prev[subject.id] === false,
+                    }))
                   }
-                  onOpenConcept={(c) => setOpenConcept(c)}
-                  onQuickRevise={quickRevise}
-                  onToggleRevisionFlag={toggleFlag}
-                />
+                >
+                  {chs.map((chapter) => (
+                    <ChapterCard
+                      key={chapter.id}
+                      chapter={chapter}
+                      expanded={!!expanded[chapter.id]}
+                      onToggle={() =>
+                        setExpanded((prev) => ({ ...prev, [chapter.id]: !prev[chapter.id] }))
+                      }
+                      onOpenConcept={(c) => setOpenConcept(c)}
+                      onQuickRevise={quickRevise}
+                      onToggleRevisionFlag={toggleFlag}
+                    />
+                  ))}
+                </SubjectSection>
               ))}
-              {chapters.length === 0 ? (
+              {sections.length === 0 ? (
                 <p className="py-12 text-center text-sm text-muted">
                   No chapters match the current filters.
                 </p>
@@ -346,7 +375,10 @@ export function CoverageDashboard({
         <ConceptDrawer
           key={openConcept.id}
           concept={openConcept}
-          onClose={() => setOpenConcept(null)}
+          onClose={() => {
+            setOpenConcept(null);
+            void refresh();
+          }}
           save={save}
         />
       ) : null}

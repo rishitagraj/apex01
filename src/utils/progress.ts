@@ -8,6 +8,7 @@ import {
 //   Checklist tasks ................ 90 points
 //     Theory 10 · Notes 10 · Examples 15 · NCERT 20 · DPP 20 · PYQ 15
 //     Lecture 5 · Revision 1-4 (1.25 each) ............ 5
+//   User-added checklist steps ..... configurable (default 5 pts each)
 //   Confidence slider .............. 10 points
 // A 100/100 therefore requires the checklist done plus a confident self-rating.
 export const CHECKLIST_WEIGHTS: Record<ChecklistTask, number> = {
@@ -24,6 +25,8 @@ export const CHECKLIST_WEIGHTS: Record<ChecklistTask, number> = {
   REVISION_4: 1.25,
 };
 
+export const DEFAULT_CUSTOM_WEIGHT = 5;
+
 export const DEFAULT_CHECKLIST: ChecklistTask[] = CHECKLIST_ORDER.map(
   (c) => c.task,
 );
@@ -34,12 +37,24 @@ export function defaultChecklistState(done: Record<string, boolean> = {}) {
   ) as Record<ChecklistTask, boolean>;
 }
 
-/** Checklist points earned (0-90). */
-export function checklistPoints(done: Record<ChecklistTask, boolean>): number {
-  return DEFAULT_CHECKLIST.reduce(
-    (sum, task) => sum + (done[task] ? CHECKLIST_WEIGHTS[task] : 0),
-    0,
+/** Checklist points earned (0-90) plus any user-added step points. */
+export function checklistPoints(
+  done: Record<ChecklistTask, boolean>,
+  extraPoints = 0,
+): number {
+  return (
+    DEFAULT_CHECKLIST.reduce(
+      (sum, task) => sum + (done[task] ? CHECKLIST_WEIGHTS[task] : 0),
+      0,
+    ) + extraPoints
   );
+}
+
+/** Points earned by user-added checklist steps (done items only). */
+export function customChecklistPoints(
+  items: { done: boolean; weight: number }[],
+): number {
+  return items.reduce((sum, i) => sum + (i.done ? i.weight : 0), 0);
 }
 
 /** Confidence contribution (0-10). */
@@ -51,11 +66,12 @@ export function confidencePoints(confidence: number): number {
 export function computeCoverage(
   done: Partial<Record<ChecklistTask, boolean>>,
   confidence: number,
+  extraPoints = 0,
 ): number {
   const full: Record<ChecklistTask, boolean> = defaultChecklistState(
     done as Record<string, boolean>,
   );
-  const total = checklistPoints(full) + confidencePoints(confidence);
+  const total = checklistPoints(full, extraPoints) + confidencePoints(confidence);
   return Math.round(Math.min(100, Math.max(0, total)));
 }
 

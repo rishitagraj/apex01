@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   X,
@@ -10,6 +10,9 @@ import {
   Save,
   Loader2,
   Plus,
+  Pencil,
+  Trash2,
+  Check,
   Clapperboard,
   FileText,
   Link2,
@@ -29,9 +32,11 @@ import { DifficultyBadge } from "@/components/syllabus/DifficultyBadge";
 import { formatMinutes } from "@/components/ui";
 import { useConceptProgress } from "@/hooks/useConceptProgress";
 import type {
+  ChecklistItemVM,
   ChecklistTask,
   ConceptVM,
   ResourceVM,
+  SyllabusStatus,
 } from "@/types/syllabus";
 
 function useIsDesktop() {
@@ -76,6 +81,114 @@ export function ConceptDrawer({
     initialNeedsRevision: concept.needsRevision,
   });
   const isDesktop = useIsDesktop();
+
+  const [items, setItems] = useState<ChecklistItemVM[]>(concept.checklist);
+  const [coverage, setCoverage] = useState(concept.coverage);
+  const [status, setStatus] = useState<SyllabusStatus>(concept.status);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [busyItem, setBusyItem] = useState(false);
+
+  const applyOutcome = (data: { ok?: boolean; [k: string]: unknown }) => {
+    if (typeof data.coverage === "number") setCoverage(data.coverage);
+    if (data.status) setStatus(data.status as SyllabusStatus);
+  };
+
+  const toVM = (raw: {
+    id: string;
+    label: string;
+    weight: number;
+    done: boolean;
+  }): ChecklistItemVM => ({
+    id: raw.id,
+    task: null,
+    label: raw.label,
+    weight: raw.weight,
+    done: raw.done,
+  });
+
+  const toggleTask = (task: ChecklistTask, done: boolean) => {
+    const item = items.find((i) => i.task === task);
+    if (!item) return;
+    setItems((prev) =>
+      prev.map((i) => (i.task === task ? { ...i, done } : i)),
+    );
+    void save("checklist", concept.id, { task, done }).then(applyOutcome);
+  };
+
+  const toggleCustom = (item: ChecklistItemVM, done: boolean) => {
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, done } : i)),
+    );
+    void save("toggleCustomChecklist", concept.id, {
+      itemId: item.id,
+      done,
+    }).then(applyOutcome);
+  };
+
+  const addItem = async () => {
+    const label = newLabel.trim();
+    if (!label || busyItem) return;
+    setBusyItem(true);
+    try {
+      const res = await save("addCustomChecklist", concept.id, { label });
+      if (res.ok && res.item) {
+        setItems((prev) => [...prev, toVM(res.item as { id: string; label: string; weight: number; done: boolean })]);
+        setNewLabel("");
+      }
+      applyOutcome(res);
+    } finally {
+      setBusyItem(false);
+    }
+  };
+
+  const startEdit = (item: ChecklistItemVM) => {
+    setEditingId(item.id);
+    setEditLabel(item.label);
+  };
+
+  const saveEdit = async () => {
+    const label = editLabel.trim();
+    if (!editingId || !label || busyItem) return;
+    setBusyItem(true);
+    try {
+      const res = await save("updateCustomChecklist", concept.id, {
+        itemId: editingId,
+        label,
+      });
+      if (res.ok && res.item) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === editingId
+              ? toVM(res.item as { id: string; label: string; weight: number; done: boolean })
+              : i,
+          ),
+        );
+      }
+      applyOutcome(res);
+      setEditingId(null);
+      setEditLabel("");
+    } finally {
+      setBusyItem(false);
+    }
+  };
+
+  const removeItem = async (item: ChecklistItemVM) => {
+    const index = items.findIndex((i) => i.id === item.id);
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+    const res = await save("removeCustomChecklist", concept.id, {
+      itemId: item.id,
+    });
+    if (!res.ok) {
+      setItems((prev) => {
+        const next = [...prev];
+        next.splice(index, 0, item);
+        return next;
+      });
+    }
+    applyOutcome(res);
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -132,10 +245,10 @@ export function ConceptDrawer({
           </div>
           <div className="flex items-center gap-2">
             <span
-              className={`chip ${STATUS_CHIP[concept.status]}`}
+              className={`chip ${STATUS_CHIP[status]}`}
               role="status"
             >
-              {STATUS_LABEL[concept.status]}
+              {STATUS_LABEL[status]}
             </span>
             {progress.saving ? <Loader2 size={15} className="animate-spin text-muted" /> : null}
             <button
@@ -150,7 +263,7 @@ export function ConceptDrawer({
 
         <div className="space-y-6 px-5 py-5">
           <div className="flex items-center gap-4">
-            <ProgressRing value={concept.coverage} size={84} label="Mastery" />
+            <ProgressRing value={coverage} size={84} label="Mastery" />
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 <DifficultyBadge difficulty={concept.difficulty} />
@@ -162,7 +275,7 @@ export function ConceptDrawer({
               </div>
               <p className="text-xs text-muted">
                 {formatMinutes(concept.studyMinutes)} studied ·{" "}
-                {concept.checklistDone}/{concept.checklistTotal} steps
+                {items.filter((i) => i.done).length}/{items.length} steps
                 {concept.estimatedHours ? ` · ~${concept.estimatedHours}h planned` : ""}
               </p>
               {concept.lastRevisedAt ? (
@@ -206,29 +319,124 @@ export function ConceptDrawer({
               Learning checklist
             </h3>
             <ul className="space-y-1">
-              {concept.checklist.map((item) => (
-                <li key={item.task}>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-black/20 px-3 py-2 text-sm transition hover:border-apex/30">
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={(e) =>
-                        progress.toggleTask(item.task as ChecklistTask, e.target.checked)
-                      }
-                      className="h-4 w-4 accent-[#ff7a1a]"
-                    />
-                    <span
-                      className={`flex-1 ${item.done ? "line-through text-muted" : ""}`}
-                    >
-                      {item.label}
-                    </span>
-                    <span className="text-[10px] font-medium tabular-nums text-muted">
-                      +{item.weight} pts
-                    </span>
-                  </label>
-                </li>
-              ))}
+              {items.map((item) =>
+                item.task ? (
+                  <li key={item.task}>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-black/20 px-3 py-2 text-sm transition hover:border-apex/30">
+                      <input
+                        type="checkbox"
+                        checked={item.done}
+                        onChange={(e) =>
+                          toggleTask(item.task as ChecklistTask, e.target.checked)
+                        }
+                        className="h-4 w-4 accent-[#ff7a1a]"
+                      />
+                      <span
+                        className={`flex-1 ${item.done ? "line-through text-muted" : ""}`}
+                      >
+                        {item.label}
+                      </span>
+                      <span className="text-[10px] font-medium tabular-nums text-muted">
+                        +{item.weight} pts
+                      </span>
+                    </label>
+                  </li>
+                ) : (
+                  <li key={item.id} className="group">
+                    {editingId === item.id ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-apex/40 bg-black/20 px-3 py-2">
+                        <input
+                          value={editLabel}
+                          onChange={(e) => setEditLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void saveEdit();
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          autoFocus
+                          aria-label="Edit step label"
+                          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+                          placeholder="Step label"
+                        />
+                        <button
+                          onClick={() => void saveEdit()}
+                          disabled={busyItem}
+                          aria-label="Save step"
+                          className="rounded-lg p-1.5 text-emerald-300 transition hover:bg-surface"
+                        >
+                          {busyItem ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Check size={14} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          aria-label="Cancel editing"
+                          className="rounded-lg p-1.5 text-muted transition hover:bg-surface"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 rounded-xl border border-dashed border-line bg-black/20 px-3 py-2 text-sm transition hover:border-apex/30">
+                        <input
+                          type="checkbox"
+                          checked={item.done}
+                          onChange={(e) => toggleCustom(item, e.target.checked)}
+                          className="h-4 w-4 accent-[#ff7a1a]"
+                          aria-label={`Mark "${item.label}" done`}
+                        />
+                        <span
+                          className={`min-w-0 flex-1 ${item.done ? "line-through text-muted" : ""}`}
+                        >
+                          {item.label}
+                        </span>
+                        <span className="text-[10px] font-medium tabular-nums text-muted">
+                          +{item.weight} pts
+                        </span>
+                        <button
+                          onClick={() => startEdit(item)}
+                          aria-label={`Edit "${item.label}"`}
+                          className="rounded-lg p-1.5 text-muted opacity-0 transition hover:bg-surface hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => void removeItem(item)}
+                          aria-label={`Remove "${item.label}"`}
+                          className="rounded-lg p-1.5 text-muted opacity-0 transition hover:bg-surface hover:text-rose-300 focus:opacity-100 group-hover:opacity-100"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ),
+              )}
             </ul>
+            <form
+              className="mt-2 flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void addItem();
+              }}
+            >
+              <input
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="Add a custom step…"
+                aria-label="New checklist step"
+                className="input flex-1"
+              />
+              <button
+                type="submit"
+                disabled={busyItem || !newLabel.trim()}
+                aria-label="Add step"
+                className="btn"
+              >
+                {busyItem ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              </button>
+            </form>
           </section>
 
           <section aria-labelledby="notes-label">

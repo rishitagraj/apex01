@@ -26,6 +26,7 @@ model User {
   subjects            Subject[]
   conceptProgress     UserConceptProgress[]
 conceptChecklists  ConceptChecklist[]
+  customChecklists   ChecklistCustomItem[]
   conceptResources   ConceptResource[]
   conceptRevisions   ConceptRevision[]
   conceptDependencies ConceptDependency[]
@@ -256,6 +257,7 @@ model Concept {
   chapter           Chapter              @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   progress          UserConceptProgress?
   checklists        ConceptChecklist[]
+  customChecklists  ChecklistCustomItem[]
   resources         ConceptResource[]
   revisions         ConceptRevision[]
   notes             ConceptNote?
@@ -300,6 +302,23 @@ model ConceptChecklist {
 
   @@unique([conceptId, userId, task])
   @@index([userId])
+}
+
+model ChecklistCustomItem {
+  id        String   @id @default(cuid())
+  conceptId String
+  userId    String
+  label     String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+  weight    Int      @default(5)
+  createdAt DateTime @default(now())
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([conceptId])
 }
 
 model ConceptResource {

@@ -4,6 +4,7 @@ import { CHECKLIST_ORDER, type SyllabusTree } from "@/types/syllabus";
 import {
   CHECKLIST_WEIGHTS,
   computeCoverage,
+  customChecklistPoints,
   defaultChecklistState,
   deriveStatus,
 } from "@/utils/progress";
@@ -33,6 +34,7 @@ export async function loadSyllabus(userId: string): Promise<SyllabusTree> {
               include: {
                 progress: true,
                 checklists: true,
+                customChecklists: { orderBy: { order: "asc" } },
                 revisions: { orderBy: { revisedAt: "desc" }, take: 20 },
                 resources: { orderBy: { createdAt: "desc" }, take: 50 },
                 notes: true,
@@ -60,19 +62,28 @@ export async function loadSyllabus(userId: string): Promise<SyllabusTree> {
           );
           // Stored checklist rows may be partial after an import; fold their
           // saved state into the full default checklist so weights stay valid.
-          const checklist = CHECKLIST_ORDER.map((c) => {
-            const saved = concept.checklists.find((r) => r.task === c.task);
-            const isDone = saved?.done ?? doneByTask[c.task] ?? false;
-            const defaultDone =
-              !saved && doneByTask[c.task] === undefined ? false : isDone;
-            return {
-              id: saved?.id ?? null,
-              task: c.task,
+          const checklist = [
+            ...CHECKLIST_ORDER.map((c) => {
+              const saved = concept.checklists.find((r) => r.task === c.task);
+              const isDone = saved?.done ?? doneByTask[c.task] ?? false;
+              const defaultDone =
+                !saved && doneByTask[c.task] === undefined ? false : isDone;
+              return {
+                id: saved?.id ?? null,
+                task: c.task,
+                label: c.label,
+                weight: CHECKLIST_WEIGHTS[c.task],
+                done: saved ? saved.done : defaultDone,
+              };
+            }),
+            ...concept.customChecklists.map((c) => ({
+              id: c.id,
+              task: null,
               label: c.label,
-              weight: CHECKLIST_WEIGHTS[c.task],
-              done: saved ? saved.done : defaultDone,
-            };
-          });
+              weight: c.weight,
+              done: c.done,
+            })),
+          ];
 
           const doneMap = Object.fromEntries(
             checklist.map((c) => [c.task, c.done]),
@@ -82,6 +93,7 @@ export async function loadSyllabus(userId: string): Promise<SyllabusTree> {
           const mastery = computeCoverage(
             doneMap as never,
             confidence,
+            customChecklistPoints(concept.customChecklists),
           );
           const status = deriveStatus(mastery, confidence, needsRevision);
           const lastRevisedAt = concept.revisions[0]?.revisedAt ?? null;
