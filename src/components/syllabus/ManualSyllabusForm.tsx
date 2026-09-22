@@ -82,7 +82,6 @@ export function ManualSyllabusForm({ onDone }: { onDone: () => void }) {
       if (!res.ok) throw new Error(data.error || "Manual import failed");
       onDone();
       router.refresh();
-      router.push("/syllabus");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Manual import failed");
       setBusy(false);

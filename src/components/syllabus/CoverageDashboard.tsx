@@ -139,17 +139,19 @@ export function CoverageDashboard({
   }, [subjects, filters, query]);
 
   const sections = useMemo(() => {
-    const groups: {
-      subject: (typeof subjects)[number];
-      chapters: (typeof subjects)[number]["chapters"][number][];
-    }[] = [];
-    for (const { subject, chapter } of chapters) {
-      const existing = groups.find((g) => g.subject.id === subject.id);
-      if (existing) existing.chapters.push(chapter);
-      else groups.push({ subject, chapters: [chapter] });
-    }
+    const hasFilter =
+      query.length > 0 ||
+      filters.status !== "all" ||
+      filters.tag !== "all";
+    const groups = subjects.map((subject) => ({
+      subject,
+      chapters: chapters
+        .filter((x) => x.subject.id === subject.id)
+        .map((x) => x.chapter),
+    }));
+    if (hasFilter) return groups.filter((g) => g.chapters.length > 0);
     return groups;
-  }, [chapters]);
+  }, [chapters, subjects, query, filters.status, filters.tag]);
 
   const resultCount = chapters.reduce((n, c) => n + c.chapter.concepts.length, 0);
 

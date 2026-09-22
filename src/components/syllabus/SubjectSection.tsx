@@ -104,7 +104,14 @@ export function SubjectSection({
 
       {expanded ? (
         <div id={`subject-${subject.id}`} className="space-y-3">
-          {children}
+          {chapters.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-xs text-muted">
+              No chapters yet — re-open Add Manually and add chapters for{" "}
+              {subject.name}, or import a syllabus.
+            </p>
+          ) : (
+            children
+          )}
         </div>
       ) : null}
     </section>
