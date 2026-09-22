@@ -15,6 +15,7 @@ import {
   TrendingUp,
   CalendarCheck,
   Loader2,
+  PenLine,
 } from "lucide-react";
 import { StatsCards } from "@/components/syllabus/StatsCards";
 import { FilterBar, DEFAULT_FILTERS, type SyllabusFilters } from "@/components/syllabus/FilterBar";
@@ -23,6 +24,7 @@ import { ConceptDrawer } from "@/components/syllabus/ConceptDrawer";
 import { KnowledgeGraph } from "@/components/syllabus/KnowledgeGraph";
 import { RevisionHeatmap } from "@/components/syllabus/RevisionHeatmap";
 import { CoverageTimeline } from "@/components/syllabus/CoverageTimeline";
+import { ManualSyllabusForm } from "@/components/syllabus/ManualSyllabusForm";
 import { useSyllabus } from "@/hooks/useSyllabus";
 import type { ConceptVM, Insights, SyllabusTree } from "@/types/syllabus";
 
@@ -47,6 +49,7 @@ export function CoverageDashboard({
     findConcept(tree.subjects, initialFocusId),
   );
   const [view, setView] = useState<ViewMode>("list");
+  const [showManual, setShowManual] = useState(false);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [insightsTick, setInsightsTick] = useState(0);
@@ -170,6 +173,14 @@ export function CoverageDashboard({
             Import Syllabus
           </Link>
           <button
+            onClick={() => setShowManual((v) => !v)}
+            aria-expanded={showManual}
+            className="btn"
+          >
+            <PenLine size={15} className="mr-1.5 inline" />
+            {showManual ? "Close" : "Add Manually"}
+          </button>
+          <button
             onClick={() => {
               const a = document.createElement("a");
               a.href = "/api/syllabus/export?format=json";
@@ -195,6 +206,10 @@ export function CoverageDashboard({
           </button>
         </div>
       </header>
+
+      {showManual ? (
+        <ManualSyllabusForm onDone={() => setShowManual(false)} />
+      ) : null}
 
       <StatsCards
         conceptsCompleted={tree.stats.conceptsCompleted}
@@ -227,6 +242,10 @@ export function CoverageDashboard({
               <Layers size={15} className="mr-1.5 inline" />
               Start from a template
             </Link>
+            <button onClick={() => setShowManual(true)} className="btn">
+              <PenLine size={15} className="mr-1.5 inline" />
+              Add manually
+            </button>
           </div>
         </div>
       ) : (

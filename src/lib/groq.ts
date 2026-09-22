@@ -19,6 +19,7 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const SYSTEM_PROMPT = `You are Apex Syllabus Parser. Convert educational syllabus documents into structured roadmap JSON.
 Ignore headers, page numbers, indexes, logos and decorative content.
 Detect: course, subjects, chapters, concepts, subconcepts, learning objectives, prerequisites, difficulty (Easy | Medium | Hard), estimated study hours, revision points, tags (NCERT, CBSE, Allen, JEE Main, JEE Advanced, NEET, Olympiad, Visual, Formula, Proof, Application).
+For multi-subject syllabi, group every chapter under the subject it belongs to — never lump chapters under a single subject or invent extra subjects. Keep subjects in the order they appear in the document, and keep chapters in the order they appear within their subject. Use one subject entry per distinct subject name.
 Keep the JSON compact so it fits the output budget: descriptions at most 15 words, learningObjectives at most 6 words each, no empty arrays. Prefer covering every chapter and concept over verbosity.
 Return valid JSON only — never markdown, never prose, no code fences.`;
 
@@ -207,10 +208,23 @@ function normalizeRoadmap(input: unknown): RoadmapDraft {
       };
     });
 
-  if (subjects.length === 0) {
+  const mergedSubjects: (typeof normSubjects)[number][] = [];
+  const byName = new Map<string, number>();
+  for (const s of normSubjects) {
+    const key = s.name.trim().toLowerCase();
+    const existing = byName.get(key);
+    if (existing !== undefined) {
+      mergedSubjects[existing].chapters.push(...s.chapters);
+    } else {
+      byName.set(key, mergedSubjects.length);
+      mergedSubjects.push(s);
+    }
+  }
+
+  if (mergedSubjects.length === 0) {
     warnings.push("No subjects detected — the document may be a scanned image.");
   }
-  const chapterCount = normSubjects.reduce(
+  const chapterCount = mergedSubjects.reduce(
     (n, s) => n + s.chapters.length,
     0,
   );
@@ -224,7 +238,7 @@ function normalizeRoadmap(input: unknown): RoadmapDraft {
 
   return {
     course: String(raw.course ?? "Imported syllabus"),
-    subjects: normSubjects,
+    subjects: mergedSubjects,
     warnings,
     userInstructionsApplied: applied,
   };
