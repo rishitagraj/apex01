@@ -19,16 +19,17 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const SYSTEM_PROMPT = `You are Apex Syllabus Parser. Convert educational syllabus documents into structured roadmap JSON.
 Ignore headers, page numbers, indexes, logos and decorative content.
 Detect: course, subjects, chapters, concepts, subconcepts, learning objectives, prerequisites, difficulty (Easy | Medium | Hard), estimated study hours, revision points, tags (NCERT, CBSE, Allen, JEE Main, JEE Advanced, NEET, Olympiad, Visual, Formula, Proof, Application).
+Keep the JSON compact so it fits the output budget: descriptions at most 15 words, learningObjectives at most 6 words each, no empty arrays. Prefer covering every chapter and concept over verbosity.
 Return valid JSON only — never markdown, never prose, no code fences.`;
 
 /**
  * Groq's free tier caps tokens-per-minute (TPM) at 8,000 for the models this
  * org can actually call (`openai/gpt-oss-120b` / `gpt-oss-20b`). A single
  * request must fit input + output inside that 8k window, so we truncate the
- * syllabus text to a ~4k-token budget (~16k chars) and cap output at 3k tokens.
+ * syllabus text to a ~3k-token budget (~11k chars) and cap output at 4k tokens.
  * Head + tail are kept so chapter lists near the end of the document survive.
  */
-function truncate(text: string, max = 16000): string {
+function truncate(text: string, max = 11000): string {
   if (text.length <= max) return text;
   const head = Math.floor(max * 0.8);
   const tail = max - head;
@@ -100,7 +101,7 @@ export async function generateRoadmap(
       model: "openai/gpt-oss-20b",
       response_format: { type: "json_object" },
       temperature: 0.2,
-      max_tokens: 3072,
+      max_tokens: 4096,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -115,6 +116,14 @@ export async function generateRoadmap(
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
+    if (
+      res.status === 400 &&
+      detail.includes("json_validate_failed")
+    ) {
+      throw new Error(
+        "The syllabus is too large to generate as one roadmap on Groq's free tier. Try a shorter PDF, split it by subject, or retry.",
+      );
+    }
     throw new Error(`Groq request failed (${res.status}): ${detail.slice(0, 300)}`);
   }
 
