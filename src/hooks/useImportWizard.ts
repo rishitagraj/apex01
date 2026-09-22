@@ -100,7 +100,7 @@ export function useImportWizard() {
       setRoadmap(parsed.roadmap as RoadmapDraft);
       setTextPreview(String(parsed.textPreview ?? ""));
       setProgressText("");
-      setStep(3);
+      setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");
     } finally {
@@ -130,7 +130,7 @@ export function useImportWizard() {
       if (!res.ok) throw new Error(data.error || "Import failed");
       setSummary(data.summary as ImportSummary);
       setImportId(data.importId as string);
-      setStep(4);
+      setStep(3);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");
     } finally {
