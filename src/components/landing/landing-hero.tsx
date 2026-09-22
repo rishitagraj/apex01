@@ -300,7 +300,8 @@ export function LandingHero({ signedIn }: { signedIn: boolean }) {
           transition={{ duration: 0.6, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="mx-auto mt-6 max-w-xl text-balance text-base text-muted sm:text-lg"
         >
-          Apex01 is your all-in-one study command center — a{" "}
+          Apex01 is your all-in-one study command center —{" "}
+          <span className="font-medium text-foreground">AI syllabus maps</span>, a{" "}
           <span className="font-medium text-foreground">planner</span>, a{" "}
           <span className="font-medium text-foreground">graphic Pomodoro</span>, live{" "}
           <span className="font-medium text-foreground">video focus rooms</span> and a global{" "}

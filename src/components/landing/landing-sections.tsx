@@ -7,7 +7,10 @@ import {
   ArrowRight,
   CalendarDays,
   ClipboardList,
+  FileUp,
   Gauge,
+  GraduationCap,
+  Layers,
   ListTodo,
   PenLine,
   Video,
@@ -17,6 +20,9 @@ import {
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 const MARQUEE_ITEMS = [
+  "AI syllabus import",
+  "Syllabus coverage",
+  "Knowledge graph",
   "Graphic Pomodoro",
   "To-do planner",
   "Scribble to text",
@@ -55,6 +61,21 @@ type Feature = {
 };
 
 const FEATURES: Feature[] = [
+  {
+    icon: FileUp,
+    title: "AI syllabus import",
+    desc: "Drag in any syllabus PDF and let AI turn it into an interactive roadmap — subjects, chapters and concepts organised for you in seconds.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Syllabus coverage",
+    desc: "Every concept becomes a trackable goal with live coverage, revision reminders and a mastery score that grows as you study.",
+  },
+  {
+    icon: Layers,
+    title: "Manual & template entry",
+    desc: "No PDF handy? Add your syllabus by hand or start from a built-in template — subjects, chapters and concepts in minutes.",
+  },
   {
     icon: Gauge,
     title: "Graphic Pomodoro",
