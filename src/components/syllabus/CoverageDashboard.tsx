@@ -52,6 +52,8 @@ export function CoverageDashboard({
   );
   const [view, setView] = useState<ViewMode>("list");
   const [showManual, setShowManual] = useState(false);
+  const [manualMode, setManualMode] = useState<"subjects" | "topics">("subjects");
+  const [manualSubjectId, setManualSubjectId] = useState<string | undefined>();
   const [insights, setInsights] = useState<Insights | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [insightsTick, setInsightsTick] = useState(0);
@@ -241,9 +243,11 @@ export function CoverageDashboard({
     [postDelete, refresh, setTree],
   );
 
-  const addTopicDone = useCallback(() => {
-    void refresh();
-  }, [refresh]);
+  const openManual = (m: "subjects" | "topics", subjectId?: string) => {
+    setManualMode(m);
+    setManualSubjectId(subjectId);
+    setShowManual(true);
+  };
 
   const totalConcepts = tree.stats.totalConcepts;
 
@@ -264,7 +268,9 @@ export function CoverageDashboard({
             Import Syllabus
           </Link>
           <button
-            onClick={() => setShowManual((v) => !v)}
+            onClick={() =>
+              showManual ? setShowManual(false) : openManual("subjects")
+            }
             aria-expanded={showManual}
             className="btn"
           >
@@ -300,6 +306,10 @@ export function CoverageDashboard({
 
       {showManual ? (
         <ManualSyllabusForm
+          key={`${manualMode}-${manualSubjectId ?? ""}`}
+          subjects={tree.subjects.map((s) => ({ id: s.id, name: s.name }))}
+          initialMode={manualMode}
+          initialSubjectId={manualSubjectId}
           onDone={() => {
             setShowManual(false);
             void refresh();
@@ -338,7 +348,10 @@ export function CoverageDashboard({
               <Layers size={15} className="mr-1.5 inline" />
               Start from a template
             </Link>
-            <button onClick={() => setShowManual(true)} className="btn">
+            <button
+              onClick={() => openManual("subjects")}
+              className="btn"
+            >
               <PenLine size={15} className="mr-1.5 inline" />
               Add manually
             </button>
@@ -427,7 +440,7 @@ export function CoverageDashboard({
                       [subject.id]: prev[subject.id] === false,
                     }))
                   }
-                  onAddTopic={addTopicDone}
+                  onAddTopics={(subjectId) => openManual("topics", subjectId)}
                   onDeleteSubject={() => deleteSubject(subject.id)}
                 >
                   {chs.map((chapter) => (

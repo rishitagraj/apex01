@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { GraduationCap, Plus, Trash2, X, Check, Loader2 } from "lucide-react";
+import { useMemo } from "react";
+import { GraduationCap, Trash2 } from "lucide-react";
 import type { ChapterVM, SubjectVM } from "@/types/syllabus";
 
 const SUBJECT_COLORS = [
@@ -21,38 +21,21 @@ function subjectColor(id: string): string {
   return SUBJECT_COLORS[Math.abs(hash) % SUBJECT_COLORS.length];
 }
 
-function parseTopicLine(text: string): {
-  name: string;
-  concepts: string[];
-} {
-  const trimmed = text.trim();
-  if (!trimmed) return { name: "", concepts: [] };
-  const sep = trimmed.indexOf("::");
-  if (sep === -1) return { name: trimmed, concepts: [] };
-  const name = trimmed.slice(0, sep).trim();
-  const concepts = trimmed
-    .slice(sep + 2)
-    .split(/[|,;]/)
-    .map((c) => c.trim())
-    .filter(Boolean);
-  return { name, concepts };
-}
-
 export function SubjectSection({
   subject,
   chapters,
   expanded,
   onToggle,
-  onAddTopic,
   onDeleteSubject,
+  onAddTopics,
   children,
 }: {
   subject: SubjectVM;
   chapters: ChapterVM[];
   expanded: boolean;
   onToggle: () => void;
-  onAddTopic: (subjectId: string, name: string, concepts: string[]) => void;
   onDeleteSubject: (subjectId: string) => void;
+  onAddTopics?: (subjectId: string) => void;
   children: React.ReactNode;
 }) {
   const stats = useMemo(() => {
@@ -60,42 +43,12 @@ export function SubjectSection({
     const completed = chapters.reduce((s, c) => s + c.completedCount, 0);
     const coverage = totalConcepts
       ? Math.round(
-          chapters.reduce(
-            (s, c) => s + c.coverage * c.conceptCount,
-            0,
-          ) / totalConcepts,
+          chapters.reduce((s, c) => s + c.coverage * c.conceptCount, 0) /
+            totalConcepts,
         )
       : 0;
     return { totalConcepts, completed, coverage };
   }, [chapters]);
-
-  const [adding, setAdding] = useState(false);
-  const [topicText, setTopicText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submitTopic = async () => {
-    const { name, concepts } = parseTopicLine(topicText);
-    if (!name || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/syllabus/topics", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subjectId: subject.id, name, concepts }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Add topic failed");
-      onAddTopic(subject.id, name, concepts);
-      setTopicText("");
-      setAdding(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Add topic failed");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const handleDelete = () => {
     if (
@@ -166,19 +119,6 @@ export function SubjectSection({
         <div className="flex shrink-0 flex-col justify-center gap-1.5">
           <button
             type="button"
-            onClick={() => {
-              setAdding((v) => !v);
-              setError(null);
-            }}
-            aria-label={`Add topic to ${subject.name}`}
-            aria-expanded={adding}
-            title="Add topic"
-            className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-surface text-muted transition hover:border-apex/40 hover:text-apex"
-          >
-            {adding ? <X size={15} /> : <Plus size={15} />}
-          </button>
-          <button
-            type="button"
             onClick={handleDelete}
             aria-label={`Delete subject ${subject.name}`}
             title="Delete subject"
@@ -189,45 +129,21 @@ export function SubjectSection({
         </div>
       </div>
 
-      {adding ? (
-        <div className="rounded-2xl border border-apex/25 bg-apex/5 p-3">
-          <label className="mb-1.5 block text-[11px] text-muted">
-            New topic — one line, concepts optional after{" "}
-            <code className="rounded bg-black/30 px-1">::</code> (comma-separated)
-          </label>
-          <div className="flex gap-2">
-            <input
-              value={topicText}
-              onChange={(e) => setTopicText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void submitTopic();
-              }}
-              autoFocus
-              placeholder="e.g. Laws of Motion :: Newton, FBD, pulley"
-              aria-label="New topic name in this subject"
-              className="input flex-1"
-            />
-            <button
-              type="button"
-              onClick={() => void submitTopic()}
-              disabled={busy || !parseTopicLine(topicText).name}
-              aria-label="Save topic"
-              className="btn"
-            >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            </button>
-          </div>
-          {error ? <p className="mt-2 text-xs text-rose-300">{error}</p> : null}
-        </div>
-      ) : null}
-
       {expanded ? (
         <div id={`subject-${subject.id}`} className="space-y-3">
           {chapters.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-xs text-muted">
-              No topics yet — use the + button above to add one, or import a
-              syllabus.
-            </p>
+            <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-xs text-muted">
+              <p>No topics yet — add some, or import a syllabus.</p>
+              {onAddTopics ? (
+                <button
+                  type="button"
+                  onClick={() => onAddTopics(subject.id)}
+                  className="btn mt-3"
+                >
+                  Add topics
+                </button>
+              ) : null}
+            </div>
           ) : (
             children
           )}
