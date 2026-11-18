@@ -100,7 +100,7 @@ function notify(title: string, body: string) {
   try {
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "granted") {
-        const n = new Notification(title, { body, icon: "/icon.svg", tag: "apex01-pomodoro" });
+        const n = new Notification(title, { body, icon: "/logo.svg", tag: "apex01-pomodoro" });
         setTimeout(() => n.close(), 10_000);
       }
     }
