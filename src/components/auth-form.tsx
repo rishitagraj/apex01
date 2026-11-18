@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Lock,
   LogIn,
   Mail,
   PenLine,
@@ -169,6 +170,29 @@ function PasswordInput({
       >
         {show ? <EyeOff size={17} /> : <Eye size={17} />}
       </button>
+    </div>
+  );
+}
+
+const AUTH_CONTACT_EMAIL = "projects.rishit@protonmail.com";
+
+function AuthClosedBanner() {
+  return (
+    <div className="mb-6 rounded-xl border border-apex/40 bg-apex/10 px-4 py-3">
+      <p className="flex items-center gap-2 text-sm font-semibold text-apex">
+        <Lock size={15} /> Logins are currently closed
+      </p>
+      <p className="mt-1 text-xs text-muted">
+        New sign-ups and password logins are temporarily paused. For access or
+        account help, email{" "}
+        <a
+          href={`mailto:${AUTH_CONTACT_EMAIL}`}
+          className="font-medium text-apex hover:underline"
+        >
+          {AUTH_CONTACT_EMAIL}
+        </a>
+        .
+      </p>
     </div>
   );
 }
@@ -367,6 +391,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="card w-full max-w-md p-8"
             >
+              <AuthClosedBanner />
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-apex-gradient text-white shadow-lg shadow-apex/20">
                   <KeyRound size={22} />
@@ -445,6 +470,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="card w-full max-w-md p-8"
           >
+            <AuthClosedBanner />
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-apex-gradient text-white shadow-lg shadow-apex/20">
                 {mode === "login" ? <LogIn size={22} /> : <Rocket size={22} />}

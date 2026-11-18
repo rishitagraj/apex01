@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -34,11 +35,43 @@ export function newFileKey(originalName: string): string {
   return `syllabus-pdfs/${Date.now()}-${slug}`;
 }
 
+export const CHAT_IMAGES_PREFIX = "chat-images/";
+
+export function newChatImageKey(originalName: string): string {
+  const slug = originalName.replace(/[^a-z0-9.-]/gi, "_").slice(0, 80);
+  return `${CHAT_IMAGES_PREFIX}${Date.now()}-${slug}`;
+}
+
+/** Total bytes currently stored under a prefix (pagination-aware). */
+export async function listObjectsSize(
+  prefix: string,
+  bucket: string = B2_BUCKET,
+): Promise<number> {
+  const s3 = client();
+  let total = 0;
+  let token: string | undefined;
+  do {
+    const res = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    );
+    for (const obj of res.Contents ?? []) {
+      total += obj.Size ?? 0;
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (token);
+  return total;
+}
+
 /** Presigned PUT the browser uses to upload directly into the bucket. */
 export async function presignUpload(
   key: string,
   contentType: string,
   fileSize: number,
+  bucket: string = B2_BUCKET,
 ): Promise<string> {
   if (fileSize > 100 * 1024 * 1024) {
     throw new Error("File exceeds the 100 MB limit");
@@ -47,7 +80,7 @@ export async function presignUpload(
   return getSignedUrl(
     s3,
     new PutObjectCommand({
-      Bucket: B2_BUCKET,
+      Bucket: bucket,
       Key: key,
       ContentType: contentType,
     }),
@@ -56,10 +89,13 @@ export async function presignUpload(
 }
 
 /** Downloads an object as a Buffer for parsing. */
-export async function getObjectBuffer(key: string): Promise<Buffer> {
+export async function getObjectBuffer(
+  key: string,
+  bucket: string = B2_BUCKET,
+): Promise<Buffer> {
   const s3 = client();
   const res = await s3.send(
-    new GetObjectCommand({ Bucket: B2_BUCKET, Key: key }),
+    new GetObjectCommand({ Bucket: bucket, Key: key }),
   );
   const body = res.Body;
   if (!body) throw new Error("Empty object");
@@ -70,7 +106,10 @@ export async function getObjectBuffer(key: string): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-export async function deleteObject(key: string): Promise<void> {
+export async function deleteObject(
+  key: string,
+  bucket: string = B2_BUCKET,
+): Promise<void> {
   const s3 = client();
-  await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: key }));
+  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }

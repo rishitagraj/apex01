@@ -17,7 +17,6 @@ export async function POST(request: Request, ctx: RouteContext<'/api/meetings/[c
     create: {
       meetingId: meeting.id,
       userId,
-      minutes: 0,
       joinedAt: new Date(),
       lastHeartbeatAt: new Date(),
     },

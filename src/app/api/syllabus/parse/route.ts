@@ -1,5 +1,6 @@
 import { verifySession } from "@/lib/auth";
 import { GroqNotConfiguredError, generateRoadmap } from "@/lib/groq";
+import { GeminiNotConfiguredError, generateWithGemini } from "@/lib/gemini";
 import { extractPdfText, ScannedPdfError, UnsupportedPdfError } from "@/lib/parser";
 import {
   B2_BUCKET,
@@ -8,25 +9,37 @@ import {
   newFileKey,
   presignUpload,
 } from "@/lib/b2";
-import { DEFAULT_PARSE_OPTIONS, type ParseOptions } from "@/types/syllabus";
+import {
+  DEFAULT_PARSE_OPTIONS,
+  type ParseEngine,
+  type ParseOptions,
+} from "@/types/syllabus";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+const PARSE_ENGINES: ParseEngine[] = ["groq", "gemini"];
+
 function readOptions(input: unknown): ParseOptions {
   if (!input || typeof input !== "object") return { ...DEFAULT_PARSE_OPTIONS };
-  const raw = input as Record<string, boolean | undefined>;
+  const raw = input as Record<string, unknown>;
+  const bool = (key: string, fallback: boolean): boolean =>
+    typeof raw[key] === "boolean" ? (raw[key] as boolean) : fallback;
   return {
-    detectPrerequisites: raw.detectPrerequisites ?? DEFAULT_PARSE_OPTIONS.detectPrerequisites,
-    estimateHours: raw.estimateHours ?? DEFAULT_PARSE_OPTIONS.estimateHours,
-    generateRevisionSchedule:
-      raw.generateRevisionSchedule ?? DEFAULT_PARSE_OPTIONS.generateRevisionSchedule,
-    generateChecklist: raw.generateChecklist ?? DEFAULT_PARSE_OPTIONS.generateChecklist,
-    mergeDuplicates: raw.mergeDuplicates ?? DEFAULT_PARSE_OPTIONS.mergeDuplicates,
-    learningObjectives:
-      raw.learningObjectives ?? DEFAULT_PARSE_OPTIONS.learningObjectives,
-    dependencyGraph: raw.dependencyGraph ?? DEFAULT_PARSE_OPTIONS.dependencyGraph,
-    keepPdf: raw.keepPdf ?? false,
+    detectPrerequisites: bool("detectPrerequisites", DEFAULT_PARSE_OPTIONS.detectPrerequisites),
+    estimateHours: bool("estimateHours", DEFAULT_PARSE_OPTIONS.estimateHours),
+    generateRevisionSchedule: bool(
+      "generateRevisionSchedule",
+      DEFAULT_PARSE_OPTIONS.generateRevisionSchedule,
+    ),
+    generateChecklist: bool("generateChecklist", DEFAULT_PARSE_OPTIONS.generateChecklist),
+    mergeDuplicates: bool("mergeDuplicates", DEFAULT_PARSE_OPTIONS.mergeDuplicates),
+    learningObjectives: bool("learningObjectives", DEFAULT_PARSE_OPTIONS.learningObjectives),
+    dependencyGraph: bool("dependencyGraph", DEFAULT_PARSE_OPTIONS.dependencyGraph),
+    keepPdf: bool("keepPdf", false),
+    engine: PARSE_ENGINES.includes(raw.engine as ParseEngine)
+      ? (raw.engine as ParseEngine)
+      : DEFAULT_PARSE_OPTIONS.engine,
   };
 }
 
@@ -91,7 +104,10 @@ export async function POST(req: Request) {
         );
       }
 
-      const roadmap = await generateRoadmap(parsed.text, instructions, options);
+      const roadmap =
+        options.engine === "gemini"
+          ? await generateWithGemini(parsed.text, instructions, options)
+          : await generateRoadmap(parsed.text, instructions, options);
       // Success: drop the temp object unless the user asked to keep the PDF.
       await cleanup(fileKey, options);
 
@@ -109,6 +125,16 @@ export async function POST(req: Request) {
         return Response.json(
           {
             error: "Groq is not configured. Add GROQ_API_KEY to generate AI roadmaps.",
+            code: "NOT_CONFIGURED",
+          },
+          { status: 503 },
+        );
+      }
+      if (err instanceof GeminiNotConfiguredError) {
+        return Response.json(
+          {
+            error:
+              "Gemini Flash is not configured yet. Add GEMINI_API_KEY to enable it, or switch the AI engine back to Groq.",
             code: "NOT_CONFIGURED",
           },
           { status: 503 },

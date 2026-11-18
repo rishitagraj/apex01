@@ -54,6 +54,7 @@ function ResourceIcon({ kind }: { kind: ResourceVM["kind"] }) {
     PYQ: { icon: FileText, color: "text-cyan-300" },
     LINK: { icon: Link2, color: "text-muted" },
     YOUTUBE: { icon: Clapperboard, color: "text-rose-300" },
+    DOCUMENT: { icon: File, color: "text-indigo-300" },
   };
   const { icon: Icon, color } = icons[kind];
   return <Icon size={14} className={`shrink-0 ${color}`} />;

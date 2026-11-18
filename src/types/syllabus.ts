@@ -42,17 +42,7 @@ export const CHECKLIST_ORDER: { task: ChecklistTask; label: string }[] = [
   { task: "REVISION_4", label: "Revision 4" },
 ];
 
-export type ResourceKind =
-  | "PDF"
-  | "IMAGE"
-  | "MARKDOWN"
-  | "FORMULA"
-  | "DPP"
-  | "PYQ"
-  | "LINK"
-  | "YOUTUBE";
-
-export const RESOURCE_KINDS: ResourceKind[] = [
+export const RESOURCE_KINDS = [
   "PDF",
   "IMAGE",
   "MARKDOWN",
@@ -61,7 +51,10 @@ export const RESOURCE_KINDS: ResourceKind[] = [
   "PYQ",
   "LINK",
   "YOUTUBE",
-];
+  "DOCUMENT",
+] as const;
+
+export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export type RevisionKind =
   | "REVISION_1"
@@ -243,6 +236,8 @@ export interface RoadmapDraft {
   revisionDays?: number[];
 }
 
+export type ParseEngine = "groq" | "gemini";
+
 export interface ParseOptions {
   detectPrerequisites: boolean;
   estimateHours: boolean;
@@ -252,6 +247,7 @@ export interface ParseOptions {
   learningObjectives: boolean;
   dependencyGraph: boolean;
   keepPdf: boolean;
+  engine: ParseEngine;
 }
 
 export const DEFAULT_PARSE_OPTIONS: ParseOptions = {
@@ -263,6 +259,7 @@ export const DEFAULT_PARSE_OPTIONS: ParseOptions = {
   learningObjectives: true,
   dependencyGraph: true,
   keepPdf: false,
+  engine: "groq",
 };
 
 export interface HeatmapCell {

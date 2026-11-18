@@ -25,7 +25,8 @@ export default function PomodoroPage() {
         <p className="mt-2 text-sm leading-relaxed text-muted">
           Pick a mode, press start. The ring visually drains as time passes and a soft chime
           tells you when a session finishes. Completing a focus session automatically rolls
-          into a break — after every fourth one you get a longer reset.
+          into a break — after every fourth one you get a longer reset. Each completed focus
+          session adds to your focus time and this week&apos;s chart.
         </p>
       </div>
 

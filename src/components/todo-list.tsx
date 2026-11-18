@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Check, CalendarClock, AlignLeft, PenLine } from "lucide-react";
+import { Plus, Trash2, Check, CalendarClock, AlignLeft, PenLine, Printer } from "lucide-react";
 import { Button, Input, Label, Badge, Card, EmptyState } from "@/components/ui";
 import { HandwritingPad } from "@/components/handwriting-pad";
+import { BrandMark } from "@/components/brand";
+import { exportPrint } from "@/lib/print";
 
 type Priority = "LOW" | "MEDIUM" | "HIGH";
 type Todo = {
@@ -97,6 +99,17 @@ export function TodoList() {
 
   return (
     <div className="space-y-6">
+      {/* Export / print actions */}
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          onClick={exportPrint}
+          title="Opens your browser's print dialog — choose 'Save as PDF'"
+        >
+          <Printer size={16} /> Export / Print
+        </Button>
+      </div>
+
       <Card className="p-5">
         <form onSubmit={create} className="space-y-4">
           <div>
@@ -259,6 +272,60 @@ export function TodoList() {
           ))}
         </ul>
       )}
+
+      {/* Print-only view: branded todo table (use Print → Save as PDF) */}
+      <div className="print-area hidden" aria-hidden="true">
+        <div className="print-head">
+          <div className="flex items-center gap-2.5">
+            <BrandMark size={40} />
+            <span className="text-2xl font-bold tracking-tight">Apex01</span>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold">To-do List</p>
+            <p>
+              {new Date().toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+        </div>
+
+        {todos.length === 0 ? (
+          <p className="mt-12 text-center text-sm font-medium">No tasks yet.</p>
+        ) : (
+          <table className="print-todo">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Notes</th>
+                <th>Priority</th>
+                <th>Due</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...todos]
+                .sort((a, b) => {
+                  if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                  return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+                })
+                .map((todo) => (
+                  <tr key={todo.id}>
+                    <td>
+                      <span className="print-subject">{todo.title}</span>
+                    </td>
+                    <td>{todo.notes || "—"}</td>
+                    <td>{PRIORITY_META[todo.priority].label}</td>
+                    <td>{todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : "—"}</td>
+                    <td>{todo.completed ? "Done" : "Pending"}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

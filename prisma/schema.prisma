@@ -35,6 +35,10 @@ conceptChecklists  ConceptChecklist[]
   revisionSchedules  RevisionSchedule[]
   syllabusImports    SyllabusImport[]
   syllabusSettings   UserSyllabusSettings?
+  chatMessages       ChatMessage[]
+  exams              Exam[]
+  resourceFolders    ResourceFolder[]
+  resourceItems      ResourceItem[]
 }
 
 model UserSyllabusSettings {
@@ -112,7 +116,6 @@ model MeetingMember {
   id              String   @id @default(cuid())
   meetingId       String
   userId          String
-  minutes         Int      @default(0)
   joinedAt        DateTime @default(now())
   lastHeartbeatAt DateTime @default(now())
 
@@ -193,6 +196,7 @@ enum ResourceKind {
   PYQ
   LINK
   YOUTUBE
+  DOCUMENT
 }
 
 enum ImportStatus {
@@ -221,6 +225,7 @@ model Subject {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   chapters Chapter[]
+  examLinks ExamSubject[]
 
   @@index([userId])
 }
@@ -237,6 +242,7 @@ model Chapter {
 
   subject  Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   concepts Concept[]
+  examLinks ExamChapter[]
 
   @@index([subjectId])
 }
@@ -265,6 +271,8 @@ model Concept {
   revisionSchedules RevisionSchedule[]
   dependencies      ConceptDependency[]  @relation("DependentConcept")
   prerequisiteOf    ConceptDependency[]  @relation("PrerequisiteConcept")
+
+  examLinks ExamConcept[]
 
   @@index([chapterId])
 }
@@ -426,5 +434,154 @@ model SyllabusImport {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
+}
+
+model ChatChannel {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  messages ChatMessage[]
+
+  @@index([sortOrder])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  channelId  String
+  userId     String
+  authorName String
+  content    String
+  imageKey   String?
+  imageType  String?
+  createdAt  DateTime @default(now())
+
+  channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt])
+}
+
+enum ExamType {
+  UNIT_TEST
+  MIDTERM
+  ANNUAL
+  QUIZ
+  CUSTOM
+}
+
+// Exam tracking. Exams reference existing syllabus rows by id (never duplicate
+// chapter/concept content); progress is always derived live from the concept
+// progress that powers Syllabus Coverage.
+model Exam {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  date       DateTime @db.Date
+  time       String?
+  type       ExamType @default(UNIT_TEST)
+  classLevel String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjects ExamSubject[]
+  chapters ExamChapter[]
+  concepts ExamConcept[]
+  attempts ExamAttempt[]
+
+  @@index([userId, date])
+}
+
+model ExamSubject {
+  id        String @id @default(cuid())
+  examId    String
+  subjectId String
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, subjectId])
+  @@index([subjectId])
+}
+
+model ExamChapter {
+  id        String @id @default(cuid())
+  examId    String
+  chapterId String
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, chapterId])
+  @@index([chapterId])
+}
+
+// Individually selected concepts (when the user picks concepts inside a chapter
+// rather than the whole chapter).
+model ExamConcept {
+  id        String @id @default(cuid())
+  examId    String
+  conceptId String
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, conceptId])
+  @@index([conceptId])
+}
+
+model ExamAttempt {
+  id           String   @id @default(cuid())
+  examId       String
+  attemptDate  DateTime @db.Date
+  marks        Int?
+  maxMarks     Int?
+  subjectMarks Json?
+  weakTopics   String?
+  mistakes     String?
+  reflections  String?
+  createdAt    DateTime @default(now())
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([examId, attemptDate])
+}
+
+// Personal resource library: folders group saved links (PDFs, images, videos…).
+model ResourceFolder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ResourceItem[]
+
+  @@index([userId, sortOrder])
+}
+
+model ResourceItem {
+  id        String       @id @default(cuid())
+  userId    String
+  folderId  String?
+  kind      ResourceKind @default(LINK)
+  title     String
+  url       String
+  notes     String?
+  fileKey   String?      @unique
+  fileName  String?
+  fileSize  Int?
+  mimeType  String?
+  createdAt DateTime     @default(now())
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder ResourceFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, folderId])
   @@index([userId, createdAt])
 }

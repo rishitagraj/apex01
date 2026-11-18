@@ -48,7 +48,7 @@ export async function getRoomList(userId: string) {
     include: {
       host: { select: { name: true } },
       memberships: {
-        select: { minutes: true, lastHeartbeatAt: true },
+        select: { lastHeartbeatAt: true },
       },
     },
   })
@@ -64,7 +64,6 @@ export async function getRoomList(userId: string) {
     participantCount: m.memberships.filter(
       (p) => now - p.lastHeartbeatAt.getTime() < 3 * 60_000,
     ).length,
-    totalMinutes: m.memberships.reduce((sum, p) => sum + p.minutes, 0),
   }))
 }
 

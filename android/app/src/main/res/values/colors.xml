@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="apex_orange">#FF7A1A</color>
+    <color name="apex_pink">#FF3D6E</color>
+    <color name="apex_dark">#0F172A</color>
+    <color name="apex_surface">#111827</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#0F172A</color>
+</resources>

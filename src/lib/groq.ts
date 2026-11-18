@@ -16,7 +16,7 @@ export class GroqNotConfiguredError extends Error {
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are Apex Syllabus Parser. Convert educational syllabus documents into structured roadmap JSON.
+export const SYSTEM_PROMPT = `You are Apex Syllabus Parser. Convert educational syllabus documents into structured roadmap JSON.
 Ignore headers, page numbers, indexes, logos and decorative content.
 Detect: course, subjects, chapters, concepts, subconcepts, learning objectives, prerequisites, difficulty (Easy | Medium | Hard), estimated study hours, revision points, tags (NCERT, CBSE, Allen, JEE Main, JEE Advanced, NEET, Olympiad, Visual, Formula, Proof, Application).
 For multi-subject syllabi, group every chapter under the subject it belongs to — never lump chapters under a single subject or invent extra subjects. Keep subjects in the order they appear in the document, and keep chapters in the order they appear within their subject. Use one subject entry per distinct subject name.
@@ -30,14 +30,17 @@ Return valid JSON only — never markdown, never prose, no code fences.`;
  * syllabus text to a ~3k-token budget (~11k chars) and cap output at 4k tokens.
  * Head + tail are kept so chapter lists near the end of the document survive.
  */
-function truncate(text: string, max = 11000): string {
+export const ROADMAP_SCHEMA_HINT =
+  'Return JSON shaped exactly like: {"course": string, "subjects": [{"name": string, "classLevel": string, "examTags": string[], "chapters": [{"name": string, "description": string, "concepts": [{"name": string, "description": string, "difficulty": "Easy" | "Medium" | "Hard", "estimatedHours": number, "prerequisites": string[], "learningObjectives": string[], "tags": string[]}]}]}], "warnings": string[], "userInstructionsApplied": string[]}.';
+
+export function truncate(text: string, max = 11000): string {
   if (text.length <= max) return text;
   const head = Math.floor(max * 0.8);
   const tail = max - head;
   return `${text.slice(0, head)}\n…[truncated]…\n${text.slice(-tail)}`;
 }
 
-function scrubJson(raw: string): string {
+export function scrubJson(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) return fenced[1].trim();
@@ -74,6 +77,23 @@ function toOptionFlags(
   };
 }
 
+export function buildParserUserContent(
+  extractedText: string,
+  instructions: string,
+  options: ParseOptions,
+  maxChars = 11000,
+): string {
+  const flags = toOptionFlags(options);
+  return [
+    `USER IMPORT INSTRUCTIONS (must be obeyed):\n${instructions || "(none)"}`,
+    `PARSER OPTIONS:\n${Object.entries(flags)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => `${k}=${String(v)}`)
+      .join("\n")}`,
+    `SYLLABUS TEXT:\n${maxChars > 0 ? truncate(extractedText, maxChars) : extractedText}`,
+  ].join("\n\n");
+}
+
 export async function generateRoadmap(
   extractedText: string,
   instructions: string,
@@ -82,15 +102,7 @@ export async function generateRoadmap(
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new GroqNotConfiguredError();
 
-  const flags = toOptionFlags(options);
-  const userContent = [
-    `USER IMPORT INSTRUCTIONS (must be obeyed):\n${instructions || "(none)"}`,
-    `PARSER OPTIONS:\n${Object.entries(flags)
-      .filter(([, v]) => v !== undefined)
-      .map(([k, v]) => `${k}=${String(v)}`)
-      .join("\n")}`,
-    `SYLLABUS TEXT:\n${truncate(extractedText)}`,
-  ].join("\n\n");
+  const userContent = buildParserUserContent(extractedText, instructions, options);
 
   const res = await fetch(GROQ_URL, {
     method: "POST",
@@ -107,9 +119,7 @@ export async function generateRoadmap(
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content:
-            "Return JSON shaped exactly like: {\"course\": string, \"subjects\": [{\"name\": string, \"classLevel\": string, \"examTags\": string[], \"chapters\": [{\"name\": string, \"description\": string, \"concepts\": [{\"name\": string, \"description\": string, \"difficulty\": \"Easy\" | \"Medium\" | \"Hard\", \"estimatedHours\": number, \"prerequisites\": string[], \"learningObjectives\": string[], \"tags\": string[]}]}]}], \"warnings\": string[], \"userInstructionsApplied\": string[]}." +
-            `\n\n${userContent}`,
+          content: ROADMAP_SCHEMA_HINT + `\n\n${userContent}`,
         },
       ],
     }),
@@ -144,7 +154,7 @@ export async function generateRoadmap(
 }
 
 /** Shape/defensive normalization + warnings for garbage the model may produce. */
-function normalizeRoadmap(input: unknown): RoadmapDraft {
+export function normalizeRoadmap(input: unknown): RoadmapDraft {
   if (!input || typeof input !== "object") {
     throw new Error("Model returned a non-object roadmap");
   }

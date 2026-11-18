@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Video, Users, Crown, Plus, Loader2, Trash2, Shield } from "lucide-react";
-import { Button, Card, Input, Label, EmptyState, formatMinutes } from "@/components/ui";
+import { Button, Card, Input, Label, EmptyState } from "@/components/ui";
 
 type Room = {
   id: string;
@@ -14,7 +14,6 @@ type Room = {
   isHost: boolean;
   isJoined: boolean;
   participantCount: number;
-  totalHours: number;
 };
 
 export function RoomsClient({ isAdmin }: { isAdmin: boolean }) {
@@ -166,7 +165,6 @@ export function RoomsClient({ isAdmin }: { isAdmin: boolean }) {
                 <span className="inline-flex items-center gap-1.5">
                   <Users size={14} /> {room.participantCount} live
                 </span>
-                <span>{formatMinutes(room.totalHours * 60)} studied</span>
               </div>
 
               <Button

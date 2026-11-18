@@ -14,6 +14,7 @@ import {
   Network,
   TrendingUp,
   CalendarCheck,
+  CalendarDays,
   Loader2,
   PenLine,
 } from "lucide-react";
@@ -26,10 +27,11 @@ import { KnowledgeGraph } from "@/components/syllabus/KnowledgeGraph";
 import { RevisionHeatmap } from "@/components/syllabus/RevisionHeatmap";
 import { CoverageTimeline } from "@/components/syllabus/CoverageTimeline";
 import { ManualSyllabusForm } from "@/components/syllabus/ManualSyllabusForm";
+import { ExamsPanel } from "@/components/syllabus/ExamsPanel";
 import { useSyllabus } from "@/hooks/useSyllabus";
 import type { ConceptVM, Insights, SyllabusTree } from "@/types/syllabus";
 
-type ViewMode = "list" | "graph";
+type ViewMode = "list" | "graph" | "exams";
 
 export function CoverageDashboard({
   initialTree,
@@ -317,15 +319,17 @@ export function CoverageDashboard({
         />
       ) : null}
 
-      <StatsCards
-        conceptsCompleted={tree.stats.conceptsCompleted}
-        totalConcepts={totalConcepts}
-        coverage={tree.stats.coverage}
-        needsRevision={tree.stats.needsRevision}
-        streakDays={tree.stats.streakDays}
-        weakCount={tree.stats.weakCount}
-        masteredCount={tree.stats.masteredCount}
-      />
+      {view !== "exams" ? (
+        <StatsCards
+          conceptsCompleted={tree.stats.conceptsCompleted}
+          totalConcepts={totalConcepts}
+          coverage={tree.stats.coverage}
+          needsRevision={tree.stats.needsRevision}
+          streakDays={tree.stats.streakDays}
+          weakCount={tree.stats.weakCount}
+          masteredCount={tree.stats.masteredCount}
+        />
+      ) : null}
 
       {totalConcepts === 0 ? (
         <div className="card flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
@@ -359,6 +363,45 @@ export function CoverageDashboard({
         </div>
       ) : (
         <>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-1">
+              <button
+                onClick={() => setView("list")}
+                aria-pressed={view === "list"}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  view === "list" ? "bg-apex-gradient text-white" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <List size={14} className="mr-1 inline" /> List
+              </button>
+              <button
+                onClick={() => setView("graph")}
+                aria-pressed={view === "graph"}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  view === "graph" ? "bg-apex-gradient text-white" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <Network size={14} className="mr-1 inline" /> Knowledge graph
+              </button>
+              <button
+                onClick={() => setView("exams")}
+                aria-pressed={view === "exams"}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  view === "exams" ? "bg-apex-gradient text-white" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <CalendarDays size={14} className="mr-1 inline" /> Exams
+              </button>
+            </div>
+            {view !== "exams" ? (
+              <span className="text-[11px] text-muted">{resultCount} concepts visible</span>
+            ) : null}
+          </div>
+
+          {view === "exams" ? (
+            <ExamsPanel tree={tree} save={save} refresh={refresh} />
+          ) : (
+            <>
           <FilterBar
             subjects={tree.subjects}
             availableTags={availableTags}
@@ -398,30 +441,6 @@ export function CoverageDashboard({
             ) : (
               <p className="py-6 text-sm text-muted">No revision activity yet — mark concepts as revised to see trends.</p>
             )}
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-1">
-              <button
-                onClick={() => setView("list")}
-                aria-pressed={view === "list"}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  view === "list" ? "bg-apex-gradient text-white" : "text-muted hover:text-foreground"
-                }`}
-              >
-                <List size={14} className="mr-1 inline" /> List
-              </button>
-              <button
-                onClick={() => setView("graph")}
-                aria-pressed={view === "graph"}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  view === "graph" ? "bg-apex-gradient text-white" : "text-muted hover:text-foreground"
-                }`}
-              >
-                <Network size={14} className="mr-1 inline" /> Knowledge graph
-              </button>
-            </div>
-            <span className="text-[11px] text-muted">{resultCount} concepts visible</span>
           </div>
 
           {view === "graph" ? (
@@ -465,6 +484,8 @@ export function CoverageDashboard({
                 </p>
               ) : null}
             </div>
+          )}
+            </>
           )}
         </>
       )}

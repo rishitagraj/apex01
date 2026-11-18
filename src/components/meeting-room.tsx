@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Video, Users, Crown, X } from "lucide-react";
-import { Spinner, formatMinutes } from "@/components/ui";
+import { Spinner } from "@/components/ui";
 
 type Participant = {
   id: string;
   name: string;
-  minutes: number;
-  totalMinutes: number;
   active: boolean;
 };
 
@@ -415,10 +413,10 @@ export function MeetingRoom({
                             {p.active ? (
                               <>
                                 <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                Active · {formatMinutes(p.minutes)}
+                                Active
                               </>
                             ) : (
-                              formatMinutes(p.minutes)
+                              "Away"
                             )}
                           </span>
                         </div>

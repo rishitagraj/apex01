@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   Plus,
   Trash2,
   Pencil,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Clock,
   BookOpen,
+  Printer,
+  Sparkles,
 } from "lucide-react";
 import { Button, Input, Label, Card, EmptyState, Badge } from "@/components/ui";
+import { BrandMark } from "@/components/brand";
+import { exportPrint } from "@/lib/print";
+import { AiTimetableWizard } from "@/components/timetable-ai-wizard";
+import type { TimetableDayRow } from "@/types/timetable";
 
 type Slot = {
   id: string;
@@ -52,6 +60,9 @@ export function TimetablePlanner() {
   const [endAt, setEndAt] = useState("10:00");
   const [notes, setNotes] = useState("");
   const [slotError, setSlotError] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [printSelection, setPrintSelection] = useState<"all" | string[]>("all");
+  const printMenuRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     fetch("/api/timetable")
@@ -66,6 +77,19 @@ export function TimetablePlanner() {
   }, []);
 
   const active = days.find((d) => d.id === activeId) ?? null;
+
+  function handleAiSaved(saved: TimetableDayRow[], mode: "append" | "replace") {
+    if (mode === "replace" || days.length === 0) {
+      setDays(saved);
+      setActiveId(saved[0]?.id ?? null);
+      if (mode === "replace") setPrintSelection("all");
+    } else {
+      setDays((prev) => [...prev, ...saved]);
+      setActiveId(saved[0]?.id ?? null);
+    }
+    setError("");
+    setAiOpen(false);
+  }
 
   async function createDay(e: React.FormEvent) {
     e.preventDefault();
@@ -88,6 +112,9 @@ export function TimetablePlanner() {
 
   async function deleteDay(id: string) {
     setDays((prev) => prev.filter((d) => d.id !== id));
+    setPrintSelection((prev) =>
+      prev === "all" ? prev : prev.filter((x) => x !== id),
+    );
     if (activeId === id) {
       const remaining = days.filter((d) => d.id !== id);
       setActiveId(remaining[0]?.id ?? null);
@@ -130,6 +157,29 @@ export function TimetablePlanner() {
     });
   }
 
+  function togglePrintDay(id: string) {
+    setPrintSelection((prev) => {
+      const current = prev === "all" ? days.map((d) => d.id) : prev;
+      return current.includes(id)
+        ? current.filter((x) => x !== id)
+        : [...current, id];
+    });
+  }
+
+  function selectAllPrint() {
+    setPrintSelection("all");
+  }
+
+  function printNow() {
+    printMenuRef.current?.removeAttribute("open");
+    exportPrint();
+  }
+
+  function printSingleDay(dayId: string) {
+    flushSync(() => setPrintSelection([dayId]));
+    exportPrint();
+  }
+
   async function createSlot(e: React.FormEvent) {
     e.preventDefault();
     if (!active) return;
@@ -168,12 +218,108 @@ export function TimetablePlanner() {
     await fetch(`/api/timetable/slots/${slotId}`, { method: "DELETE" });
   }
 
+  const printDays =
+    printSelection === "all"
+      ? days
+      : days.filter((d) => printSelection.includes(d.id));
+  const printTimeframes = Array.from(
+    new Set(
+      printDays.flatMap((d) => d.slots.map((s) => `${s.startAt}|${s.endAt}`)),
+    ),
+  )
+    .map((key) => key.split("|") as [string, string])
+    .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+
+  const allDaysSelected = days.length > 0 && printDays.length === days.length;
+  const printLabel =
+    days.length === 0 || allDaysSelected
+      ? "All days"
+      : printDays.length === 0
+        ? "None"
+        : printDays.length === 1
+          ? printDays[0].name
+          : `${printDays.length} days`;
+
   if (loading) {
     return <p className="py-8 text-center text-sm text-muted">Loading timetable…</p>;
   }
 
   return (
     <div className="space-y-6">
+      {/* Export / print + AI actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted">
+          Build your week by hand below — or let the AI planner draft it for you.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => setAiOpen(true)}
+            className="btn bg-apex-gradient text-white"
+            title="Answer a few questions and get an editable timetable"
+          >
+            <Sparkles size={16} /> AI Timetable
+          </Button>
+          <div className="inline-flex items-center gap-2">
+            <details ref={printMenuRef} className="relative">
+              <summary
+                className="inline-flex h-9 cursor-pointer list-none items-center gap-2 rounded-xl border border-line bg-surface px-3 text-xs text-muted transition hover:border-apex/30 hover:text-foreground [&::-webkit-details-marker]:hidden"
+                title="Choose which days to include when printing"
+              >
+                <Printer size={14} />
+                <span className="hidden sm:inline">Print:</span>
+                <span className="font-medium text-foreground">{printLabel}</span>
+                <ChevronDown size={13} />
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 w-60 rounded-xl border border-line bg-card p-2 shadow-xl">
+                <div className="flex items-center justify-between px-1.5 pb-1.5">
+                  <span className="text-xs font-medium text-muted">Days to print</span>
+                  <button
+                    type="button"
+                    onClick={selectAllPrint}
+                    className="text-xs font-semibold text-apex hover:underline"
+                  >
+                    Select all
+                  </button>
+                </div>
+                <div className="max-h-64 space-y-0.5 overflow-y-auto">
+                  {days.length === 0 ? (
+                    <p className="px-1.5 py-2 text-xs text-muted">No days yet.</p>
+                  ) : (
+                    days.map((day) => {
+                      const checked = printDays.some((d) => d.id === day.id);
+                      return (
+                        <label
+                          key={day.id}
+                          className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 text-sm transition hover:bg-surface"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => togglePrintDay(day.id)}
+                            className="h-4 w-4 accent-[var(--apex)]"
+                          />
+                          <span className="min-w-0 flex-1 truncate">{day.name}</span>
+                          <span className="text-xs text-muted/70">{day.slots.length}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </details>
+            <Button
+              type="button"
+              onClick={printNow}
+              disabled={printDays.length === 0}
+              title="Opens your browser's print dialog — choose 'Save as PDF'"
+            >
+              <Printer size={16} /> Export / Print
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Add day row */}
       <Card className="p-5">
         <form onSubmit={createDay} className="flex items-end gap-3">
@@ -290,6 +436,14 @@ export function TimetablePlanner() {
                   <Badge color="neutral">
                     {active.slots.length} slot{active.slots.length !== 1 ? "s" : ""}
                   </Badge>
+                  <button
+                    type="button"
+                    onClick={() => printSingleDay(active.id)}
+                    title="Print this day on its own"
+                    className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition hover:border-apex/30 hover:text-foreground"
+                  >
+                    <Printer size={13} /> Print this day
+                  </button>
                 </div>
               )}
 
@@ -376,6 +530,87 @@ export function TimetablePlanner() {
           )}
         </>
       )}
+
+      {/* Print-only view: branded timetable table (use Print → Save as PDF) */}
+      <div className="print-area hidden" aria-hidden="true">
+        <div className="print-head">
+          <div className="flex items-center gap-2.5">
+            <BrandMark size={40} />
+            <span className="text-2xl font-bold tracking-tight">Apex01</span>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold">Study Timetable</p>
+            <p>{printLabel}</p>
+            <p>
+              {new Date().toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+        </div>
+
+        {days.length === 0 ? (
+          <p className="mt-12 text-center text-sm font-medium">
+            No timetable days yet.
+          </p>
+        ) : printDays.length === 0 ? (
+          <p className="mt-12 text-center text-sm font-medium">
+            No days selected to print.
+          </p>
+        ) : printTimeframes.length === 0 ? (
+          <p className="mt-12 text-center text-sm font-medium">
+            No time slots to print for the selected day{printDays.length > 1 ? "s" : ""}.
+          </p>
+        ) : (
+          <table className="print-timetable">
+            <thead>
+              <tr>
+                <th>Time</th>
+                {printDays.map((day) => (
+                  <th key={day.id}>{day.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {printTimeframes.map(([start, end]) => (
+                <tr key={`${start}|${end}`}>
+                  <td className="print-time">
+                    {formatTime24(start)} – {formatTime24(end)}
+                  </td>
+                  {printDays.map((day) => {
+                    const slot =
+                      day.slots.find(
+                        (s) => s.startAt === start && s.endAt === end,
+                      ) ?? null;
+                    return (
+                      <td key={day.id}>
+                        {slot ? (
+                          <>
+                            <span className="print-subject">{slot.subject}</span>
+                            {slot.notes ? (
+                              <p className="print-notes">{slot.notes}</p>
+                            ) : null}
+                          </>
+                        ) : null}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {aiOpen ? (
+        <AiTimetableWizard
+          existingCount={days.length}
+          onClose={() => setAiOpen(false)}
+          onSaved={handleAiSaved}
+        />
+      ) : null}
     </div>
   );
 }

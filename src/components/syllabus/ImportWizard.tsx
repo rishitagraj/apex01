@@ -23,7 +23,7 @@ import { PromptBox } from "@/components/syllabus/PromptBox";
 import { ImportPreview } from "@/components/syllabus/ImportPreview";
 import { StorageCard } from "@/components/syllabus/StorageCard";
 import { useImportWizard } from "@/hooks/useImportWizard";
-import type { ImportRecordVM, StorageUsage } from "@/types/syllabus";
+import type { ImportRecordVM, ParseEngine, StorageUsage } from "@/types/syllabus";
 
 const STEPS = ["Upload", "AI Instructions", "Preview", "Done"] as const;
 
@@ -241,7 +241,7 @@ export function ImportWizard({
               <ol className="space-y-2 text-xs text-muted">
                 <li>1. PDF is uploaded to secure storage (deleted after import)</li>
                 <li>2. Text is extracted from every page</li>
-                <li>3. Groq AI builds a structured roadmap</li>
+                <li>3. AI builds a structured roadmap (Groq or Gemini Flash)</li>
                 <li>4. You preview, edit & confirm before it lands in Apex</li>
               </ol>
             </div>
@@ -260,6 +260,28 @@ export function ImportWizard({
               <p className="text-xs text-muted">{wizard.file?.name}</p>
             </div>
           </div>
+
+          <label className="block">
+            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted">
+              <Sparkles size={13} className="text-apex" /> AI engine
+            </span>
+            <select
+              value={wizard.options.engine}
+              onChange={(e) =>
+                wizard.setOptions({
+                  ...wizard.options,
+                  engine: e.target.value as ParseEngine,
+                })
+              }
+              className="input w-full"
+            >
+              <option value="groq">Groq — gpt-oss-20b (fast, free)</option>
+              <option value="gemini">Gemini Flash — full syllabus accuracy</option>
+            </select>
+            <span className="mt-1 block text-[11px] text-muted">
+              Gemini reads the whole PDF text (no truncation); Groq is speedier but caps long syllabi.
+            </span>
+          </label>
 
           <PromptBox value={wizard.prompt} onChange={wizard.setPrompt} />
 

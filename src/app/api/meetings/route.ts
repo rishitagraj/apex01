@@ -17,9 +17,7 @@ export async function GET() {
       memberships: {
         select: {
           userId: true,
-          minutes: true,
           lastHeartbeatAt: true,
-          user: { select: { name: true } },
         },
       },
     },
@@ -37,9 +35,6 @@ export async function GET() {
     participantCount: m.memberships.filter(
       (p) => now - p.lastHeartbeatAt.getTime() < 3 * 60_000,
     ).length,
-    totalHours: Math.round(
-      (m.memberships.reduce((sum, p) => sum + p.minutes, 0) / 60) * 10,
-    ) / 10,
   }))
 
   return NextResponse.json({ rooms })
@@ -93,7 +88,6 @@ export async function POST(request: Request) {
         isHost: true,
         isJoined: false,
         participantCount: 0,
-        totalHours: 0,
       },
     },
     { status: 201 },

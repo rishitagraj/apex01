@@ -13,7 +13,7 @@ export async function GET(request: Request, ctx: RouteContext<'/api/meetings/[co
     include: {
       host: { select: { id: true, name: true } },
       memberships: {
-        include: { user: { select: { id: true, name: true, totalMinutes: true } } },
+        include: { user: { select: { id: true, name: true } } },
       },
     },
   })
@@ -33,8 +33,6 @@ export async function GET(request: Request, ctx: RouteContext<'/api/meetings/[co
       participants: meeting.memberships.map((p) => ({
         id: p.user.id,
         name: p.user.name,
-        minutes: p.minutes,
-        totalMinutes: p.user.totalMinutes,
         active: now - p.lastHeartbeatAt.getTime() < 3 * 60_000,
       })),
     },

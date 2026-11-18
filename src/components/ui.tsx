@@ -2,8 +2,10 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react
 
 export function Button({
   className = "",
+  size,
+  variant,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement>) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { size?: string; variant?: string }) {
   return <button className={`btn ${className}`} {...props} />;
 }
 

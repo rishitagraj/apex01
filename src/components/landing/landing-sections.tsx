@@ -15,6 +15,9 @@ import {
   PenLine,
   Video,
   Users,
+  FileText,
+  BookOpen,
+  Share2,
 } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -31,6 +34,9 @@ const MARQUEE_ITEMS = [
   "Streak tracking",
   "Timetable",
   "Assessments",
+  "Resources library",
+  "PDF reader with annotations",
+  "Public file sharing",
 ];
 
 function Marquee() {
@@ -105,6 +111,21 @@ const FEATURES: Feature[] = [
     icon: PenLine,
     title: "Scribble to text",
     desc: "Jot a task by hand on your iPad or pen tablet and watch it become real text — on-device, with cloud OCR for cursive.",
+  },
+  {
+    icon: FileText,
+    title: "Resources library",
+    desc: "Upload PDFs, documents and links to a shared library. Every public upload is visible to all users with easy search and organization.",
+  },
+  {
+    icon: BookOpen,
+    title: "PDF reader with annotations",
+    desc: "Read and annotate PDFs directly in the app with pen, highlighter, shapes, text tools. Your annotations are saved locally for each document.",
+  },
+  {
+    icon: Share2,
+    title: "Public file sharing",
+    desc: "Share study materials instantly with shareable public links. Upload once and everyone can access them through the shared library.",
   },
 ];
 
