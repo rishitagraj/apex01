@@ -20,21 +20,51 @@ export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const userId = (await verifySession())!;
-  const user = await db.user.findUnique({ where: { id: userId } });
+  let userId = "";
+  let user: { name: string | null } | null = null;
+  try {
+    userId = (await verifySession())!;
+    user = await db.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+  } catch {
+    // fall through with defaults; layout already guards auth
+  }
 
-  const [stats, rooms] = await Promise.all([
-    getDashboardStats(userId),
-    getRoomList(userId),
-  ]);
+  let stats = {
+    totalMinutes: 0,
+    memberSince: null as Date | null,
+    completedToday: 0,
+    pendingToday: 0,
+    week: [] as { date: string; minutes: number }[],
+  };
+  let rooms: Awaited<ReturnType<typeof getRoomList>> = [];
+  let rank: number | null = null;
 
-  const rank = (await getLeaderboard()).find((e) => e.id === userId)?.rank ?? null;
+  try {
+    const [statsResult, roomsResult] = await Promise.all([
+      getDashboardStats(userId).catch(() => null),
+      getRoomList(userId).catch(() => []),
+    ]);
+    if (statsResult) stats = statsResult;
+    rooms = roomsResult ?? [];
+  } catch {
+    // keep defaults
+  }
+
+  try {
+    const leaderboard = await getLeaderboard();
+    rank = leaderboard.find((e) => e.id === userId)?.rank ?? null;
+  } catch {
+    rank = null;
+  }
 
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">
-          Welcome back, <span className="text-gradient">{user?.name}</span>
+          Welcome back, <span className="text-gradient">{user?.name ?? "there"}</span>
         </h1>
         <p className="mt-1 text-sm text-muted">
           Let&apos;s get today&apos;s sessions into the books.
