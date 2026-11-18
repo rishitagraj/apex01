@@ -6,7 +6,7 @@ Apex01 is your all-in-one study command center: a smart planner with to-do lists
 based on hours spent studying in rooms, and **Supabase Auth** for secure email / OTP / Google
 authentication.
 
-![Apex01](src/app/icon.svg)
+![Apex01](logo.svg)
 
 ## Features
 
