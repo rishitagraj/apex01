@@ -100,7 +100,7 @@ function notify(title: string, body: string) {
   try {
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "granted") {
-        const n = new Notification(title, { body, icon: "/logo.svg", tag: "apex01-pomodoro" });
+        const n = new Notification(title, { body, icon: "/icon.svg", tag: "apex01-pomodoro" });
         setTimeout(() => n.close(), 10_000);
       }
     }
@@ -151,10 +151,8 @@ export function Pomodoro() {
       ? Notification.permission
       : "unsupported",
   );
-  const [justToggled, setJustToggled] = useState(false);
 
   const countRef = useRef(0);
-  const lastCreditRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runningRef = useRef(running);
   const deadlineRef = useRef<number | null>(deadline);
@@ -189,71 +187,44 @@ export function Pomodoro() {
     }
   }, [mode, secondsLeft, running, deadline]);
 
-  const finishingRef = useRef(false);
   // Complete a finished session: chime, notify, and advance to the next mode.
   const finish = useCallback(
     (finishedMode: Mode) => {
-      if (finishingRef.current) return;
-      finishingRef.current = true;
-      try {
-        beep();
-        if (finishedMode === "focus") {
-          notify("Focus complete 🎉", "Great job! Time for a break.");
-        } else {
-          notify("Break over", "Back to focus — you've got this.");
-        }
-
-        if (finishedMode === "focus") {
-          // Credit focus time to the server. The dashboard's focus stats come
-          // from completed Pomodoro sessions, not focus rooms. Guard against a
-          // double fire (e.g. the tick and the visibility handler racing).
-          const stamp = Date.now();
-          if (stamp - lastCreditRef.current > 5000) {
-            lastCreditRef.current = stamp;
-            void fetch("/api/pomodoro/sessions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ minutes: durations.focus, mode: "focus" }),
-            }).catch(() => {
-              // Offline or server hiccup — the session still counted locally.
-            });
-          }
-
-          const sum = countRef.current + 1;
-          countRef.current = sum;
-          setCompletedFocus(sum);
-          const nextMode: Mode = sum % 4 === 0 ? "long" : "short";
-          setMode(nextMode);
-          setSecondsLeft(durations[nextMode] * 60);
-          setRunning(false);
-          setDeadline(null);
-        } else {
-          setMode("focus");
-          setSecondsLeft(durations.focus * 60);
-          setRunning(false);
-          setDeadline(null);
-        }
-      } finally {
-        setTimeout(() => {
-          finishingRef.current = false;
-        }, 1000);
+      beep();
+      if (finishedMode === "focus") {
+        notify("Focus complete 🎉", "Great job! Time for a break.");
+      } else {
+        notify("Break over", "Back to focus — you've got this.");
       }
+
+      if (finishedMode === "focus") {
+        const sum = countRef.current + 1;
+        countRef.current = sum;
+        setCompletedFocus(sum);
+        const nextMode: Mode = sum % 4 === 0 ? "long" : "short";
+        setMode(nextMode);
+        setSecondsLeft(durations[nextMode] * 60);
+      } else {
+        setMode("focus");
+        setSecondsLeft(durations.focus * 60);
+      }
+      setRunning(false);
+      setDeadline(null);
     },
     [durations],
   );
 
   // Drive the countdown off the wall-clock deadline. The effect re-runs when
-  // mode/deadline change so closures stay fresh.
+  // mode/durations change so closures stay fresh.
   useEffect(() => {
     if (!running || deadline == null) return;
-    const currentMode = mode;
     const tick = () => {
-      if (deadlineRef.current == null || !runningRef.current) return;
+      if (deadlineRef.current == null) return;
       const remaining = Math.ceil((deadlineRef.current - Date.now()) / 1000);
       if (remaining <= 0) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         intervalRef.current = null;
-        finish(currentMode);
+        finish(mode);
       } else {
         setSecondsLeft(remaining);
       }
@@ -264,8 +235,7 @@ export function Pomodoro() {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, deadline, finish]);
+  }, [running, deadline, mode, finish]);
 
   // Recompute the moment the tab becomes visible again (timers get throttled
   // in background tabs) so the displayed time never drifts.
@@ -282,18 +252,18 @@ export function Pomodoro() {
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finish]);
+  }, [finish, mode]);
 
-  // While running, reflect the remaining time in the tab title. When the timer
-  // stops (or the page unmounts) leave the title to Next's route metadata so
-  // navigating to another page doesn't leave a stale "Pomodoro" title behind.
+  // While running, reflect the remaining time in the tab title.
   useEffect(() => {
     if (running) {
       document.title = `${formatClock(secondsLeft)} ${mode} · Apex01`;
     } else {
-      document.title = "Pomodoro · Apex01";
+      document.title = "Pomodoro — Apex01";
     }
+    return () => {
+      document.title = "Pomodoro — Apex01";
+    };
   }, [running, secondsLeft, mode]);
 
   // If a session ended while the component was unmounted (user navigated to
@@ -306,20 +276,12 @@ export function Pomodoro() {
   }, [finish]);
 
   function selectMode(next: Mode) {
-    if (next === mode) return;
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
+    setRunning(false);
+    setDeadline(null);
     setMode(next);
-    // Don't reset the timer when manually switching modes
-    if (runningRef.current && deadlineRef.current) {
-      setRunning(true);
-      setDeadline(deadlineRef.current);
-    } else {
-      setRunning(false);
-      setDeadline(null);
-    }
-    setJustToggled(true);
-    setTimeout(() => setJustToggled(false), 260);
+    setSecondsLeft(durations[next] * 60);
   }
 
   function reset() {
@@ -351,8 +313,6 @@ export function Pomodoro() {
     }
     setRunning(true);
     setDeadline(Date.now() + secondsLeftRef.current * 1000);
-    setJustToggled(true);
-    setTimeout(() => setJustToggled(false), 280);
   }
 
   function nudge(delta: number) {
@@ -397,9 +357,7 @@ export function Pomodoro() {
       <div className="relative flex w-full max-w-[340px] items-center justify-center">
         <svg
           viewBox="0 0 340 340"
-          className={`aspect-square w-full transition-transform duration-300 ease-out drop-shadow-[0_0_35px_rgba(255,122,26,0.12)] ${
-            running ? "scale-[1.01]" : "scale-100"
-          } ${justToggled ? "scale-[1.015]" : ""}`}
+          className="aspect-square w-full drop-shadow-[0_0_35px_rgba(255,122,26,0.12)]"
         >
           <defs>
             <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -433,21 +391,6 @@ export function Pomodoro() {
           <circle
             cx="170"
             cy="170"
-            r={R - 8}
-            fill="none"
-            stroke="url(#ringGrad)"
-            strokeOpacity={running ? 0.3 : 0.14}
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray="2 13"
-            style={{ transformBox: "fill-box", transformOrigin: "center" }}
-            className={`transition-[stroke-opacity] duration-500 ${
-              running ? "animate-[spin_40s_linear_infinite]" : ""
-            }`}
-          />
-          <circle
-            cx="170"
-            cy="170"
             r={R}
             fill="none"
             stroke="url(#ringGrad)"
@@ -461,17 +404,11 @@ export function Pomodoro() {
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <p className="text-sm font-medium uppercase tracking-[0.3em] text-muted">{cfg.label}</p>
           <p
-            className={`text-sm font-medium uppercase tracking-[0.3em] text-muted transition-opacity duration-300 ${
-              running ? "opacity-90" : "opacity-70"
-            }`}
-          >
-            {cfg.label}
-          </p>
-          <p
-            className={`font-mono font-bold tabular-nums transition-transform duration-300 ${
+            className={`font-mono font-bold tabular-nums ${
               secondsLeft >= 5400 ? "text-5xl sm:text-6xl" : "text-6xl sm:text-7xl"
-            } ${running ? "scale-[1.01]" : "scale-100"} ${justToggled ? "scale-[1.02]" : ""}`}
+            }`}
             style={{ color: cfg.color }}
           >
             {formatClock(secondsLeft)}
@@ -500,19 +437,10 @@ export function Pomodoro() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button
-          onClick={reset}
-          aria-label="Reset timer"
-          className="btn-ghost transition-transform hover:scale-105 active:scale-95"
-        >
+        <Button onClick={reset} aria-label="Reset timer" className="btn-ghost">
           <RotateCcw size={18} />
         </Button>
-        <Button
-          onClick={start}
-          className={`btn-primary h-14 w-32 rounded-full text-base transition-all hover:scale-105 active:scale-95 ${
-            running ? "shadow-lg shadow-apex/30" : ""
-          }`}
-        >
+        <Button onClick={start} className="btn-primary h-14 w-32 rounded-full text-base">
           {running ? (
             <>
               <Pause size={20} /> Pause
@@ -526,7 +454,7 @@ export function Pomodoro() {
         <Button
           onClick={() => setSettingsOpen((o) => !o)}
           aria-label="Timer settings"
-          className="btn-ghost transition-transform hover:scale-105 active:scale-95"
+          className="btn-ghost"
         >
           <Settings2 size={18} />
         </Button>
