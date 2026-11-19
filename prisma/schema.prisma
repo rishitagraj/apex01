@@ -25,20 +25,21 @@ model User {
   timetables          TimetableDay[]
   subjects            Subject[]
   conceptProgress     UserConceptProgress[]
-conceptChecklists  ConceptChecklist[]
-  customChecklists   ChecklistCustomItem[]
-  conceptResources   ConceptResource[]
-  conceptRevisions   ConceptRevision[]
+  conceptChecklists   ConceptChecklist[]
+  customChecklists    ChecklistCustomItem[]
+  conceptResources    ConceptResource[]
+  conceptRevisions    ConceptRevision[]
   conceptDependencies ConceptDependency[]
-  conceptNotes       ConceptNote[]
-  conceptMistakes    ConceptMistake[]
-  revisionSchedules  RevisionSchedule[]
-  syllabusImports    SyllabusImport[]
-  syllabusSettings   UserSyllabusSettings?
-  chatMessages       ChatMessage[]
-  exams              Exam[]
-  resourceFolders    ResourceFolder[]
-  resourceItems      ResourceItem[]
+  conceptNotes        ConceptNote[]
+  conceptMistakes     ConceptMistake[]
+  revisionSchedules   RevisionSchedule[]
+  syllabusImports     SyllabusImport[]
+  syllabusSettings    UserSyllabusSettings?
+  chatMessages        ChatMessage[]
+  exams               Exam[]
+  resourceFolders     ResourceFolder[]
+  resourceItems       ResourceItem[]
+  blogPosts           BlogPost[]
 }
 
 model UserSyllabusSettings {
@@ -584,4 +585,23 @@ model ResourceItem {
 
   @@index([userId, folderId])
   @@index([userId, createdAt])
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  excerpt     String?
+  content     String
+  coverImage  String?
+  published   Boolean   @default(false)
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([published, publishedAt])
+  @@index([authorId, createdAt])
 }

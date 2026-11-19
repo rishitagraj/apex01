@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Shield, UserPlus, KeyRound, Trash2, Copy, Check } from "lucide-react";
+import Link from "next/link";
+import { Shield, UserPlus, KeyRound, Trash2, Copy, Check, FileText } from "lucide-react";
 import { Button, Card, Input, Label, Badge, Spinner } from "@/components/ui";
 
 type UserRow = {
@@ -141,13 +142,18 @@ export function AdminConsole({ selfEmail }: { selfEmail: string }) {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-          <Shield size={26} className="text-apex" /> Admin
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Verify accounts, manage admin powers and remove accounts — admin only.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
+            <Shield size={26} className="text-apex" /> Admin
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Verify accounts, manage admin powers and remove accounts — admin only.
+          </p>
+        </div>
+        <Link href="/admin/blog" className="btn btn-primary">
+          <FileText size={16} /> Manage blog posts
+        </Link>
       </header>
 
       {error ? (

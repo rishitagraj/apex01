@@ -49,6 +49,12 @@ export function LandingPage({
               How it works
             </a>
             <Link
+              href="/blog"
+              className="rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground"
+            >
+              Blog
+            </Link>
+            <Link
               href="/leaderboard"
               className="rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground"
             >
@@ -78,6 +84,9 @@ export function LandingPage({
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted sm:flex-row">
           <Wordmark />
           <div className="flex items-center gap-5">
+            <Link href="/blog" className="transition hover:text-foreground">
+              Blog
+            </Link>
             <Link href="/leaderboard" className="transition hover:text-foreground">
               Leaderboard
             </Link>
